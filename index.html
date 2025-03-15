@@ -10,18 +10,24 @@
     <button onclick="sendNotification()">Send Notification</button>
 
     <script>
+        // Request permission and send notification
         function sendNotification() {
             if (!("Notification" in window)) {
                 alert("Your browser does not support notifications.");
                 return;
             }
 
-            Notification.requestPermission().then(permission => {
+            Notification.requestPermission().then(function(permission) {
                 if (permission === "granted") {
-                    new Notification("Test Notification", {
-                        body: "This is a test notification.",
-                        icon: "icon.png"
-                    });
+                    // Notification works if permission is granted
+                    if (navigator.serviceWorker) {
+                        navigator.serviceWorker.ready.then(function(registration) {
+                            registration.showNotification("Test Notification", {
+                                body: "This is a test notification.",
+                                icon: "icon-192x192.png"
+                            });
+                        });
+                    }
                 } else {
                     alert("Please allow notifications in your browser settings.");
                 }
