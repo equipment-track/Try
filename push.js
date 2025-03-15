@@ -18,3 +18,12 @@ function setReminder() {
 
     alert("Reminder set successfully!");
 }
+
+// Periodically check reminders every minute
+setInterval(() => {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(reg => {
+            reg.active.postMessage({ checkReminders: true });
+        });
+    }
+}, 60000);
