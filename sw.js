@@ -2,9 +2,11 @@ self.addEventListener('message', event => {
     const reminder = event.data;
     if (reminder) {
         saveReminder(reminder);
+        scheduleNotification(reminder);
     }
 });
 
+// Save reminder in IndexedDB
 function saveReminder(reminder) {
     const dbRequest = indexedDB.open("RemindersDB", 1);
 
@@ -24,44 +26,18 @@ function saveReminder(reminder) {
     };
 }
 
-// Periodically check and trigger notifications
-self.addEventListener('sync', event => {
-    if (event.tag === 'check-reminders') {
-        event.waitUntil(checkAndTriggerReminders());
+// Schedule notification
+function scheduleNotification(reminder) {
+    let now = Date.now();
+    let delay = reminder.time - now;
+
+    if (delay > 0) {
+        setTimeout(() => {
+            self.registration.showNotification(reminder.title, {
+                body: reminder.message,
+                icon: "icon.png",
+                vibrate: [200, 100, 200],
+            });
+        }, delay);
     }
-});
-
-function checkAndTriggerReminders() {
-    return new Promise((resolve, reject) => {
-        const dbRequest = indexedDB.open("RemindersDB", 1);
-        dbRequest.onsuccess = event => {
-            let db = event.target.result;
-            let tx = db.transaction("reminders", "readonly");
-            let store = tx.objectStore("reminders");
-            let request = store.getAll();
-
-            request.onsuccess = () => {
-                let now = new Date().toISOString();
-                request.result.forEach(reminder => {
-                    if (reminder.time <= now) {
-                        self.registration.showNotification(reminder.title, {
-                            body: reminder.message,
-                            icon: "icon.png",
-                            vibrate: [200, 100, 200],
-                        });
-                    }
-                });
-                resolve();
-            };
-        };
-    });
 }
-
-// Ensure periodic reminder check
-self.addEventListener('install', event => {
-    event.waitUntil(
-        self.registration.periodicSync.register('check-reminders', {
-            minInterval: 60 * 1000
-        })
-    );
-});
