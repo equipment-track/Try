@@ -24,7 +24,7 @@ function saveReminder(reminder) {
     };
 }
 
-// Check reminders and trigger notifications
+// Periodically check and trigger notifications
 self.addEventListener('sync', event => {
     if (event.tag === 'check-reminders') {
         event.waitUntil(checkAndTriggerReminders());
@@ -57,7 +57,11 @@ function checkAndTriggerReminders() {
     });
 }
 
-// Register periodic sync
-self.addEventListener('install', () => {
-    self.registration.periodicSync.register('check-reminders', { minInterval: 60 * 1000 });
+// Ensure periodic reminder check
+self.addEventListener('install', event => {
+    event.waitUntil(
+        self.registration.periodicSync.register('check-reminders', {
+            minInterval: 60 * 1000
+        })
+    );
 });
