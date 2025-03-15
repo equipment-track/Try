@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reminder Notifications</title>
+
+    <!-- Include manifest.json -->
+    <link rel="manifest" href="manifest.json">
     <script defer src="push.js"></script>
 </head>
 <body>
@@ -21,11 +24,28 @@
     <button onclick="setReminder()">Set Reminder</button>
 
     <script>
+        // Register service worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js')
-                .then(() => console.log("Service Worker Registered"))
+                .then(reg => console.log("Service Worker Registered"))
                 .catch(err => console.error("Service Worker Failed", err));
         }
+
+        // Request Notification Permission
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission !== 'granted') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        console.log("Notifications enabled");
+                    } else {
+                        alert("Please enable notifications for reminders!");
+                    }
+                });
+            }
+        }
+
+        // Ask for permission on page load
+        window.onload = requestNotificationPermission;
     </script>
 </body>
 </html>
