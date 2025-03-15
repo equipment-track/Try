@@ -1,12 +1,14 @@
 // Register Service Worker
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/service-worker.js').then(function(registration) {
-        console.log('Service Worker registered with scope:', registration.scope);
-        document.getElementById('status').textContent = 'Service Worker Registered!';
-    }).catch(function(error) {
-        console.error('Service Worker registration failed:', error);
-        document.getElementById('status').textContent = 'Service Worker registration failed!';
-    });
+    navigator.serviceWorker.register('/service-worker.js')
+        .then(function(registration) {
+            console.log('Service Worker registered with scope:', registration.scope);
+            document.getElementById('status').textContent = 'Service Worker Registered!';
+        })
+        .catch(function(error) {
+            console.error('Service Worker registration failed:', error);
+            document.getElementById('status').textContent = 'Service Worker registration failed!';
+        });
 }
 
 // Request Notification Permission
