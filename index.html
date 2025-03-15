@@ -3,33 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Push Notification Test</title>
-    <link rel="icon" href="/icon-192x192.png">
+    <title>Push Notifications</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/icon.png">
     <style>
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            padding: 50px;
+            padding-top: 50px;
         }
-
-        button {
-            padding: 10px 20px;
+        #notifyButton {
+            padding: 15px 30px;
             font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
             cursor: pointer;
-        }
-
-        #status {
-            margin-top: 20px;
-            font-size: 18px;
         }
     </style>
 </head>
 <body>
+    <h1>Push Notification Example</h1>
+    <button id="notifyButton">Enable Notifications</button>
 
-    <h1>Push Notification Test</h1>
-    <button id="testNotification">Send Test Notification</button>
-    <div id="status"></div>
-
-    <script src="app.js"></script>
+    <script src="/script.js"></script>
 </body>
 </html>
