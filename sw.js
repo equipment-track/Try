@@ -1,8 +1,8 @@
 self.addEventListener('message', event => {
-    const reminder = event.data;
-    if (reminder) {
-        saveReminder(reminder);
-        scheduleNotification(reminder);
+    if (event.data.checkReminders) {
+        checkAndTriggerReminders();
+    } else {
+        saveReminder(event.data);
     }
 });
 
@@ -26,18 +26,27 @@ function saveReminder(reminder) {
     };
 }
 
-// Schedule notification
-function scheduleNotification(reminder) {
-    let now = Date.now();
-    let delay = reminder.time - now;
+// Check and trigger notifications
+function checkAndTriggerReminders() {
+    const dbRequest = indexedDB.open("RemindersDB", 1);
 
-    if (delay > 0) {
-        setTimeout(() => {
-            self.registration.showNotification(reminder.title, {
-                body: reminder.message,
-                icon: "icon.png",
-                vibrate: [200, 100, 200],
+    dbRequest.onsuccess = event => {
+        let db = event.target.result;
+        let tx = db.transaction("reminders", "readonly");
+        let store = tx.objectStore("reminders");
+        let request = store.getAll();
+
+        request.onsuccess = () => {
+            let now = Date.now();
+            request.result.forEach(reminder => {
+                if (reminder.time <= now) {
+                    self.registration.showNotification(reminder.title, {
+                        body: reminder.message,
+                        icon: "icon.png",
+                        vibrate: [200, 100, 200],
+                    });
+                }
             });
-        }, delay);
-    }
+        };
+    };
 }
