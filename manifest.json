@@ -1,19 +1,14 @@
 {
-    "name": "Push Notification Example",
-    "short_name": "Push Example",
-    "start_url": "/",
+    "name": "Reminder App",
+    "short_name": "Reminder",
+    "start_url": "index.html",
     "display": "standalone",
     "background_color": "#ffffff",
-    "description": "An example to test push notifications",
+    "description": "A simple web app to set reminders and receive push notifications.",
     "icons": [
         {
             "src": "icon.png",
             "sizes": "192x192",
-            "type": "image/png"
-        },
-        {
-            "src": "icon-512x512.png",
-            "sizes": "512x512",
             "type": "image/png"
         }
     ]
