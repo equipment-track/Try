@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Service Worker Demo</title>
+    <title>Local Push Notification</title>
+    <script defer src="push.js"></script>
 </head>
 <body>
-    <h1>Service Worker Registration Example</h1>
-    <button id="register-sw">Register Service Worker</button>
-    
-    <script src="script.js"></script>
+    <h1>Local Push Notification Demo</h1>
+    <button onclick="requestPermission()">Enable Notifications</button>
+    <button onclick="sendNotification()">Send Notification</button>
 </body>
 </html>
