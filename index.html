@@ -3,11 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notification Test</title>
-    <script defer src="notification.js"></script>
+    <title>Push Notification Test</title>
 </head>
 <body>
     <h1>Push Notification Test</h1>
-    <button id="notifyBtn">Send Notification</button>
+    <button onclick="sendNotification()">Send Notification</button>
+
+    <script>
+        function sendNotification() {
+            if (!("Notification" in window)) {
+                alert("Your browser does not support notifications.");
+                return;
+            }
+
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    new Notification("Test Notification", {
+                        body: "This is a test notification.",
+                        icon: "icon.png"
+                    });
+                } else {
+                    alert("Please allow notifications in your browser settings.");
+                }
+            });
+        }
+    </script>
 </body>
 </html>
