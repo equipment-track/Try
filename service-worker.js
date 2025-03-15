@@ -1,12 +1,35 @@
+// Install the Service Worker and Cache the assets
+self.addEventListener('install', function(event) {
+    event.waitUntil(
+        caches.open('push-notifications-cache').then(function(cache) {
+            return cache.addAll([
+                '/',
+                '/index.html',
+                '/app.js',
+                '/icon-192x192.png',
+                '/icon-512x512.png',
+            ]);
+        })
+    );
+});
+
+// Activate the Service Worker
+self.addEventListener('activate', function(event) {
+    console.log('Service Worker activated!');
+});
+
+// Push event listener
 self.addEventListener('push', function(event) {
-    const options = {
+    console.log('Push notification received:', event);
+
+    // Set default options for notification
+    let options = {
         body: event.data.text(),
-        icon: 'icon-192x192.png', // Ensure you have an icon at this location
-        badge: 'icon-192x192.png',
+        icon: '/icon-192x192.png',
+        badge: '/icon-192x192.png',
     };
 
-    // Show notification
     event.waitUntil(
-        self.registration.showNotification('Push Notification Title', options)
+        self.registration.showNotification('Test Notification', options)
     );
 });
