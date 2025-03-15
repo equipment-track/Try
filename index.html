@@ -3,12 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Local Push Notification</title>
+    <title>Reminder Notifications</title>
     <script defer src="push.js"></script>
 </head>
 <body>
-    <h1>Local Push Notification Demo</h1>
-    <button onclick="requestPermission()">Enable Notifications</button>
-    <button onclick="sendNotification()">Send Notification</button>
+    <h1>Set a Reminder</h1>
+    
+    <label>Reminder Title:</label>
+    <input type="text" id="title" placeholder="Enter title"><br><br>
+    
+    <label>Message:</label>
+    <input type="text" id="message" placeholder="Enter message"><br><br>
+
+    <label>Select Date & Time:</label>
+    <input type="datetime-local" id="reminderTime"><br><br>
+    
+    <button onclick="setReminder()">Set Reminder</button>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log("Service Worker Registered"))
+                .catch(err => console.error("Service Worker Failed", err));
+        }
+    </script>
 </body>
 </html>
