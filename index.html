@@ -3,49 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reminder Notifications</title>
-
-    <!-- Include manifest.json -->
+    <title>Note Reminder App</title>
     <link rel="manifest" href="manifest.json">
-    <script defer src="push.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #noteForm {
+            margin: 20px;
+        }
+        #notes {
+            margin-top: 30px;
+        }
+        .note {
+            background: #f4f4f4;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
 </head>
 <body>
-    <h1>Set a Reminder</h1>
-    
-    <label>Reminder Title:</label>
-    <input type="text" id="title" placeholder="Enter title"><br><br>
-    
-    <label>Message:</label>
-    <input type="text" id="message" placeholder="Enter message"><br><br>
 
-    <label>Select Date & Time:</label>
-    <input type="datetime-local" id="reminderTime"><br><br>
-    
-    <button onclick="setReminder()">Set Reminder</button>
+    <h1>Note Reminder App</h1>
 
-    <script>
-        // Register service worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(reg => console.log("Service Worker Registered"))
-                .catch(err => console.error("Service Worker Failed", err));
-        }
+    <div id="noteForm">
+        <textarea id="noteText" placeholder="Enter your note here"></textarea><br>
+        <input type="text" id="reminder" placeholder="Set reminder date (e.g., 03 Feb 5:32 PM)"><br>
+        <button id="saveNote">Save Note</button>
+    </div>
 
-        // Request Notification Permission
-        function requestNotificationPermission() {
-            if ('Notification' in window && Notification.permission !== 'granted') {
-                Notification.requestPermission().then(permission => {
-                    if (permission === 'granted') {
-                        console.log("Notifications enabled");
-                    } else {
-                        alert("Please enable notifications for reminders!");
-                    }
-                });
-            }
-        }
+    <div id="notes">
+        <h2>Your Notes</h2>
+        <div id="noteList"></div>
+    </div>
 
-        // Ask for permission on page load
-        window.onload = requestNotificationPermission;
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>
