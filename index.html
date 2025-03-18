@@ -3,40 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Note Reminder App</title>
+    <title>Notes App</title>
     <link rel="manifest" href="manifest.json">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-        }
-        #noteForm {
-            margin: 20px;
-        }
-        #notes {
-            margin-top: 30px;
-        }
-        .note {
-            background: #f4f4f4;
-            padding: 10px;
-            margin: 10px 0;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
-    <h1>Note Reminder App</h1>
-
-    <div id="noteForm">
-        <textarea id="noteText" placeholder="Enter your note here"></textarea><br>
-        <input type="text" id="reminder" placeholder="Set reminder date (e.g., 03 Feb 5:32 PM)"><br>
-        <button id="saveNote">Save Note</button>
+    <div class="container">
+        <header>
+            <h1>Notes App</h1>
+            <input type="text" id="search" placeholder="Search notes...">
+        </header>
+        <main>
+            <textarea id="noteInput" placeholder="Write your note here..."></textarea>
+            <button id="saveNoteButton">Save Note</button>
+            <div id="notesContainer"></div>
+        </main>
     </div>
-
-    <div id="notes">
-        <h2>Your Notes</h2>
-        <div id="noteList"></div>
-    </div>
-
     <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then((registration) => {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                }).catch((error) => {
+                    console.log('Service Worker registration failed:', error);
+                });
+        }
+    </script>
 </body>
 </html>
