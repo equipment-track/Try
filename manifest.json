@@ -2,7 +2,7 @@
   "name": "Note Reminder App",
   "short_name": "Notes",
   "description": "A simple note-taking app with reminder functionality",
-  "start_url": ".",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4CAF50",
