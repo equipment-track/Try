@@ -1,7 +1,7 @@
 {
     "name": "Notes App",
     "short_name": "Notes",
-    "start_url": "/",
+    "start_url": "./index.html",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#0078d4",
