@@ -1,34 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notes App</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="styles.css">
+  <title>SWR Auto-Fill Form</title>
+  <style>
+    body {
+      font-family: sans-serif;
+    }
+    .template {
+      position: relative;
+      width: 768px;
+      height: 994px;
+      background: url('swr-template.jpg') no-repeat;
+      background-size: cover;
+      margin-bottom: 20px;
+    }
+    .field {
+      position: absolute;
+      border: none;
+      background-color: rgba(255, 255, 150, 0.8);
+      padding: 2px;
+      font-size: 12px;
+    }
+
+    /* Position each yellow field (example positions, may need adjustment) */
+    #name { top: 110px; left: 180px; width: 200px; }
+    #initials { top: 140px; left: 180px; width: 100px; }
+    #phone { top: 170px; left: 180px; width: 100px; }
+#phone2 { top: 170px; left: 300px; width: 100px; }
+    #location { top: 240px; left: 180px; width: 200px; }
+    #description { top: 270px; left: 50px; width: 670px; height: 40px; }
+    #remarks { top: 350px; left: 400px; width: 320px; height: 100px; }
+    #signature { top: 470px; left: 50px; width: 150px; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Notes App</h1>
-            <input type="text" id="search" placeholder="Search notes...">
-        </header>
-        <main>
-            <textarea id="noteInput" placeholder="Write your note here..."></textarea>
-            <button id="saveNoteButton">Save Note</button>
-            <div id="notesContainer"></div>
-        </main>
-    </div>
-    <script src="app.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then((registration) => {
-                    console.log('Service Worker registered with scope:', registration.scope);
-                }).catch((error) => {
-                    console.log('Service Worker registration failed:', error);
-                });
-        }
-    </script>
+
+<h3>Fill the Form</h3>
+<div>
+  <label>Name: <input id="input_name"></label><br>
+  <label>Initials: <input id="input_initials"></label><br>
+  <label>Phone: <input id="input_phone"></label>
+  <label>Ext: <input id="input_phone2"></label><br>
+  <label>Location: <input id="input_location"></label><br>
+  <label>Description: <input id="input_description"></label><br>
+  <label>Remarks: <textarea id="input_remarks" rows="2" cols="40"></textarea></label><br>
+  <label>Signature: <input id="input_signature"></label><br>
+  <button onclick="fillForm()">Auto Fill</button>
+</div>
+
+<div class="template">
+  <input id="name" class="field">
+  <input id="initials" class="field">
+  <input id="phone" class="field">
+  <input id="phone2" class="field">
+  <input id="location" class="field">
+  <input id="description" class="field">
+  <textarea id="remarks" class="field"></textarea>
+  <input id="signature" class="field">
+</div>
+
+<script>
+function fillForm() {
+document.getElementById("name").value = document.getElementById("input_name").value;
+  document.getElementById("initials").value = document.getElementById("input_initials").value;
+  document.getElementById("phone").value = document.getElementById("input_phone").value;
+  document.getElementById("phone2").value = document.getElementById("input_phone2").value;
+  document.getElementById("location").value = document.getElementById("input_location").value;
+  document.getElementById("description").value = document.getElementById("input_description").value;
+  document.getElementById("remarks").value = document.getElementById("input_remarks").value;
+  document.getElementById("signature").value = document.getElementById("input_signature").value;
+}
+</script>
+
 </body>
 </html>
