@@ -13,12 +13,13 @@
     }
     .field {
       position: absolute;
-      border: 1px dashed #ccc;
+      border: 1px dashed #000;
       background-color: rgba(255,255,150,0.8);
       padding: 2px;
       font-size: 12px;
       resize: both;
       overflow: auto;
+      cursor: move;
     }
     input[type="text"], textarea {
       width: 200px;
@@ -26,23 +27,38 @@
     #previewCanvas {
       display: none;
     }
+    #templateList {
+      margin-top: 10px;
+    }
+    #templateList button {
+      display: block;
+      margin: 4px 0;
+    }
   </style>
 </head>
 <body><h3>Step 1: Upload Template Image and Add/Edit Fields</h3>
-<input type="file" id="templateInput" accept="image/*"><br>
-<button onclick="addBox()">Add Box</button>
+<input type="file" id="templateInput" accept="image/*"><br><br>
+<input type="text" id="templateName" placeholder="Template Name"><br><br>
+<button onclick="promptAddBox()">Add Box</button>
 <button onclick="saveTemplate()">Save Template</button>
-<button onclick="loadTemplate()">Load Saved Template</button><h3>Step 2: Enter Values for Boxes</h3>
+<button onclick="loadTemplateList()">Load Template List</button>
+<div id="templateList"></div><h3>Step 2: Enter Values for Boxes</h3>
 <div id="valueInputs"></div>
-<button onclick="previewTemplate()">Preview</button>
+<button onclick="generateInputs()">Generate Inputs</button>
 <button onclick="downloadImage()">Download Image</button><h3>Template Preview</h3>
 <div id="templateContainer"></div>
 <canvas id="previewCanvas" width="768" height="994"></canvas><script>
 let templateImage = new Image();
 let boxCounter = 0;
 let boxes = [];
+let currentTemplateKey = '';
 
-function addBox(name = "Box" + (boxCounter+1), top = 50, left = 50, width = 150, height = 20) {
+function promptAddBox() {
+  const name = prompt("Enter Box Label (e.g., Badge No, Name, etc.):");
+  if (name) addBox(name);
+}
+
+function addBox(name, top = 50, left = 50, width = 150, height = 20) {
   const id = `box_${boxCounter++}`;
   const box = document.createElement('div');
   box.className = 'field';
@@ -53,23 +69,29 @@ function addBox(name = "Box" + (boxCounter+1), top = 50, left = 50, width = 150,
   box.style.height = height + 'px';
   box.dataset.name = name;
   box.id = id;
-  box.draggable = true;
 
-  makeDraggableResizable(box);
+  makeDraggable(box);
   document.getElementById('templateContainer').appendChild(box);
   boxes.push({ id, name });
 }
 
-function makeDraggableResizable(el) {
+function makeDraggable(el) {
   el.onmousedown = function(e) {
-    const offsetX = e.clientX - el.offsetLeft;
-    const offsetY = e.clientY - el.offsetTop;
+    if (e.target !== el) return;
+    e.preventDefault();
+    const shiftX = e.clientX - el.getBoundingClientRect().left;
+    const shiftY = e.clientY - el.getBoundingClientRect().top;
+
     function moveAt(e) {
-      el.style.left = (e.clientX - offsetX) + 'px';
-      el.style.top = (e.clientY - offsetY) + 'px';
+      el.style.left = (e.clientX - shiftX) + 'px';
+      el.style.top = (e.clientY - shiftY) + 'px';
     }
-    document.onmousemove = moveAt;
-    document.onmouseup = () => document.onmousemove = null;
+
+    document.addEventListener('mousemove', moveAt);
+    document.addEventListener('mouseup', function removeEvents() {
+      document.removeEventListener('mousemove', moveAt);
+      document.removeEventListener('mouseup', removeEvents);
+    });
   };
 }
 
@@ -80,12 +102,16 @@ document.getElementById('templateInput').addEventListener('change', function(e) 
     reader.onload = function(evt) {
       templateImage.src = evt.target.result;
       document.getElementById('templateContainer').style.backgroundImage = `url(${evt.target.result})`;
+      templateImage.dataset.src = evt.target.result;
     };
     reader.readAsDataURL(file);
   }
 });
 
 function saveTemplate() {
+  const name = document.getElementById('templateName').value.trim();
+  if (!name) return alert("Enter a template name to save.");
+
   const fields = Array.from(document.getElementsByClassName('field')).map(box => ({
     id: box.id,
     name: box.dataset.name,
@@ -94,23 +120,49 @@ function saveTemplate() {
     width: parseInt(box.style.width),
     height: parseInt(box.style.height)
   }));
-  localStorage.setItem('savedTemplate', JSON.stringify(fields));
-  alert('Template saved!');
+
+  const templateData = {
+    image: templateImage.dataset.src,
+    boxes: fields
+  };
+
+  localStorage.setItem("template_" + name, JSON.stringify(templateData));
+  alert("Template saved!");
 }
 
-function loadTemplate() {
-  const saved = localStorage.getItem('savedTemplate');
-  if (saved) {
-    document.getElementById('templateContainer').innerHTML = '';
-    boxes = [];
-    boxCounter = 0;
-    const data = JSON.parse(saved);
-    data.forEach(field => addBox(field.name, field.top, field.left, field.width, field.height));
-    alert('Template loaded.');
+function loadTemplateList() {
+  const container = document.getElementById('templateList');
+  container.innerHTML = '<h4>Saved Templates</h4>';
+  for (let key in localStorage) {
+    if (key.startsWith("template_")) {
+      const btn = document.createElement('button');
+      btn.textContent = key.replace("template_", "");
+      btn.onclick = () => loadTemplate(key);
+      container.appendChild(btn);
+    }
   }
 }
 
-function previewTemplate() {
+function loadTemplate(key) {
+  const data = JSON.parse(localStorage.getItem(key));
+  if (!data) return;
+  currentTemplateKey = key;
+  document.getElementById('templateContainer').innerHTML = '';
+  boxes = [];
+  boxCounter = 0;
+  document.getElementById('templateName').value = key.replace("template_", "");
+
+  templateImage.src = data.image;
+  templateImage.onload = () => {
+    document.getElementById('templateContainer').style.backgroundImage = `url(${data.image})`;
+  };
+  templateImage.dataset.src = data.image;
+
+  data.boxes.forEach(box => addBox(box.name, box.top, box.left, box.width, box.height));
+  generateInputs();
+}
+
+function generateInputs() {
   const container = document.getElementById('valueInputs');
   container.innerHTML = '';
   boxes.forEach(box => {
@@ -132,10 +184,9 @@ function downloadImage() {
 
   boxes.forEach(box => {
     const inputVal = document.getElementById(`input_${box.id}`)?.value || '';
-    const div = document.getElementById(box.id);
     ctx.font = '12px sans-serif';
     ctx.fillStyle = 'black';
-    ctx.fillText(inputVal, parseInt(div.style.left), parseInt(div.style.top) + 12);
+    ctx.fillText(inputVal, box.left, box.top + 12);
   });
 
   const link = document.createElement('a');
