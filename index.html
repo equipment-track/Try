@@ -1,198 +1,235 @@
-<!DOCTYPE html><html>
+<!DOCTYPE html><html lang="en">
 <head>
-  <title>Dynamic Template Editor</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Template Creator</title>
   <style>
-    body { font-family: sans-serif; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 10px;
+    }
     #templateContainer {
       position: relative;
-      width: 768px;
-      height: 994px;
-      border: 1px solid #ccc;
-      background-size: cover;
-      margin-bottom: 20px;
+      display: inline-block;
     }
-    .field {
+    #templateImage {
+      max-width: 100%;
+    }
+    .box {
+      border: 2px dashed yellow;
       position: absolute;
-      border: 1px dashed #000;
-      background-color: rgba(255,255,150,0.8);
-      padding: 2px;
-      font-size: 12px;
       resize: both;
-      overflow: auto;
+      overflow: hidden;
+      min-width: 30px;
+      min-height: 30px;
+    }
+    .label {
+      background: yellow;
+      color: black;
+      font-size: 12px;
+      padding: 2px;
+      display: inline-block;
+    }
+    .drag-handle {
+      width: 20px;
+      height: 20px;
+      background: yellow;
+      color: black;
+      font-weight: bold;
+      text-align: center;
+      line-height: 20px;
+      position: absolute;
+      bottom: 0;
+      right: 0;
       cursor: move;
     }
-    input[type="text"], textarea {
-      width: 200px;
+    .template-box-input {
+      margin-bottom: 10px;
     }
-    #previewCanvas {
+    canvas {
       display: none;
-    }
-    #templateList {
-      margin-top: 10px;
-    }
-    #templateList button {
-      display: block;
-      margin: 4px 0;
     }
   </style>
 </head>
-<body><h3>Step 1: Upload Template Image and Add/Edit Fields</h3>
-<input type="file" id="templateInput" accept="image/*"><br><br>
-<input type="text" id="templateName" placeholder="Template Name"><br><br>
-<button onclick="promptAddBox()">Add Box</button>
-<button onclick="saveTemplate()">Save Template</button>
-<button onclick="loadTemplateList()">Load Template List</button>
-<div id="templateList"></div><h3>Step 2: Enter Values for Boxes</h3>
-<div id="valueInputs"></div>
-<button onclick="generateInputs()">Generate Inputs</button>
-<button onclick="downloadImage()">Download Image</button><h3>Template Preview</h3>
-<div id="templateContainer"></div>
-<canvas id="previewCanvas" width="768" height="994"></canvas><script>
-let templateImage = new Image();
-let boxCounter = 0;
-let boxes = [];
-let currentTemplateKey = '';
+<body>
+  <h2>Template Creator</h2>
+  <input type="file" id="imageUploader" accept="image/*" />
+  <input type="text" id="templateName" placeholder="Template Name" />
+  <button onclick="addNewBox()">Add New Box</button>
+  <button onclick="saveTemplate()">Save Template</button>
+  <button onclick="loadTemplates()">Load Template</button>
+  <button onclick="generateTextInputs()">Generate Text</button>
+  <button onclick="downloadImage()">Download</button>  <div id="inputFields"></div>  <div id="templateContainer">
+    <img id="templateImage" />
+  </div><canvas id="previewCanvas"></canvas>
 
-function promptAddBox() {
-  const name = prompt("Enter Box Label (e.g., Badge No, Name, etc.):");
-  if (name) addBox(name);
-}
+  <script>
+    const templateContainer = document.getElementById("templateContainer");
+    const templateImage = document.getElementById("templateImage");
+    const inputFields = document.getElementById("inputFields");
+    const canvas = document.getElementById("previewCanvas");
+    let boxes = [];
 
-function addBox(name, top = 50, left = 50, width = 150, height = 20) {
-  const id = `box_${boxCounter++}`;
-  const box = document.createElement('div');
-  box.className = 'field';
-  box.contentEditable = true;
-  box.style.top = top + 'px';
-  box.style.left = left + 'px';
-  box.style.width = width + 'px';
-  box.style.height = height + 'px';
-  box.dataset.name = name;
-  box.id = id;
-
-  makeDraggable(box);
-  document.getElementById('templateContainer').appendChild(box);
-  boxes.push({ id, name });
-}
-
-function makeDraggable(el) {
-  el.onmousedown = function(e) {
-    if (e.target !== el) return;
-    e.preventDefault();
-    const shiftX = e.clientX - el.getBoundingClientRect().left;
-    const shiftY = e.clientY - el.getBoundingClientRect().top;
-
-    function moveAt(e) {
-      el.style.left = (e.clientX - shiftX) + 'px';
-      el.style.top = (e.clientY - shiftY) + 'px';
-    }
-
-    document.addEventListener('mousemove', moveAt);
-    document.addEventListener('mouseup', function removeEvents() {
-      document.removeEventListener('mousemove', moveAt);
-      document.removeEventListener('mouseup', removeEvents);
+    document.getElementById("imageUploader").addEventListener("change", function (e) {
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        templateImage.src = event.target.result;
+      };
+      reader.readAsDataURL(e.target.files[0]);
     });
-  };
-}
 
-document.getElementById('templateInput').addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-      templateImage.src = evt.target.result;
-      document.getElementById('templateContainer').style.backgroundImage = `url(${evt.target.result})`;
-      templateImage.dataset.src = evt.target.result;
-    };
-    reader.readAsDataURL(file);
-  }
-});
+    function makeDraggable(box) {
+      const dragHandle = box.querySelector(".drag-handle");
+      dragHandle.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        const offsetX = e.clientX - box.offsetLeft;
+        const offsetY = e.clientY - box.offsetTop;
 
-function saveTemplate() {
-  const name = document.getElementById('templateName').value.trim();
-  if (!name) return alert("Enter a template name to save.");
+        function mouseMoveHandler(e) {
+          box.style.left = e.clientX - offsetX + "px";
+          box.style.top = e.clientY - offsetY + "px";
+        }
 
-  const fields = Array.from(document.getElementsByClassName('field')).map(box => ({
-    id: box.id,
-    name: box.dataset.name,
-    top: parseInt(box.style.top),
-    left: parseInt(box.style.left),
-    width: parseInt(box.style.width),
-    height: parseInt(box.style.height)
-  }));
+        function mouseUpHandler() {
+          document.removeEventListener("mousemove", mouseMoveHandler);
+          document.removeEventListener("mouseup", mouseUpHandler);
+        }
 
-  const templateData = {
-    image: templateImage.dataset.src,
-    boxes: fields
-  };
-
-  localStorage.setItem("template_" + name, JSON.stringify(templateData));
-  alert("Template saved!");
-}
-
-function loadTemplateList() {
-  const container = document.getElementById('templateList');
-  container.innerHTML = '<h4>Saved Templates</h4>';
-  for (let key in localStorage) {
-    if (key.startsWith("template_")) {
-      const btn = document.createElement('button');
-      btn.textContent = key.replace("template_", "");
-      btn.onclick = () => loadTemplate(key);
-      container.appendChild(btn);
+        document.addEventListener("mousemove", mouseMoveHandler);
+        document.addEventListener("mouseup", mouseUpHandler);
+      });
     }
-  }
-}
 
-function loadTemplate(key) {
-  const data = JSON.parse(localStorage.getItem(key));
-  if (!data) return;
-  currentTemplateKey = key;
-  document.getElementById('templateContainer').innerHTML = '';
-  boxes = [];
-  boxCounter = 0;
-  document.getElementById('templateName').value = key.replace("template_", "");
+    function addNewBox() {
+      const name = prompt("Enter box label name:");
+      if (!name) return;
 
-  templateImage.src = data.image;
-  templateImage.onload = () => {
-    document.getElementById('templateContainer').style.backgroundImage = `url(${data.image})`;
-  };
-  templateImage.dataset.src = data.image;
+      const box = document.createElement("div");
+      box.className = "box";
+      box.style.left = "50px";
+      box.style.top = "50px";
+      box.style.width = "100px";
+      box.style.height = "50px";
 
-  data.boxes.forEach(box => addBox(box.name, box.top, box.left, box.width, box.height));
-  generateInputs();
-}
+      const label = document.createElement("div");
+      label.className = "label";
+      label.textContent = name;
 
-function generateInputs() {
-  const container = document.getElementById('valueInputs');
-  container.innerHTML = '';
-  boxes.forEach(box => {
-    const input = document.createElement('input');
-    input.placeholder = box.name;
-    input.id = `input_${box.id}`;
-    container.appendChild(document.createTextNode(box.name + ': '));
-    container.appendChild(input);
-    container.appendChild(document.createElement('br'));
-  });
-}
+      const dragHandle = document.createElement("div");
+      dragHandle.className = "drag-handle";
+      dragHandle.textContent = "+";
 
-function downloadImage() {
-  const canvas = document.getElementById('previewCanvas');
-  const ctx = canvas.getContext('2d');
+      box.appendChild(label);
+      box.appendChild(dragHandle);
+      templateContainer.appendChild(box);
+      makeDraggable(box);
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
+      boxes.push({ name, element: box });
+    }
 
-  boxes.forEach(box => {
-    const inputVal = document.getElementById(`input_${box.id}`)?.value || '';
-    ctx.font = '12px sans-serif';
-    ctx.fillStyle = 'black';
-    ctx.fillText(inputVal, box.left, box.top + 12);
-  });
+    function saveTemplate() {
+      const name = document.getElementById("templateName").value;
+      if (!name) return alert("Enter a template name");
 
-  const link = document.createElement('a');
-  link.download = 'filled-template.png';
-  link.href = canvas.toDataURL();
-  link.click();
-}
-</script></body>
+      const data = {
+        image: templateImage.src,
+        boxes: boxes.map((b) => ({
+          name: b.name,
+          left: b.element.style.left,
+          top: b.element.style.top,
+          width: b.element.style.width,
+          height: b.element.style.height
+        }))
+      };
+
+      localStorage.setItem("template-" + name, JSON.stringify(data));
+      alert("Template saved");
+    }
+
+    function loadTemplates() {
+      inputFields.innerHTML = "";
+      const keys = Object.keys(localStorage).filter(k => k.startsWith("template-"));
+      const list = document.createElement("ul");
+      keys.forEach(key => {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.textContent = key.replace("template-", "");
+        btn.onclick = () => loadTemplate(key);
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+      inputFields.appendChild(list);
+    }
+
+    function loadTemplate(key) {
+      const data = JSON.parse(localStorage.getItem(key));
+      templateImage.src = data.image;
+      boxes.forEach(b => b.element.remove());
+      boxes = [];
+      data.boxes.forEach(info => {
+        const box = document.createElement("div");
+        box.className = "box";
+        box.style.left = info.left;
+        box.style.top = info.top;
+        box.style.width = info.width;
+        box.style.height = info.height;
+
+        const label = document.createElement("div");
+        label.className = "label";
+        label.textContent = info.name;
+
+        const dragHandle = document.createElement("div");
+        dragHandle.className = "drag-handle";
+        dragHandle.textContent = "+";
+
+        box.appendChild(label);
+        box.appendChild(dragHandle);
+        templateContainer.appendChild(box);
+        makeDraggable(box);
+        boxes.push({ name: info.name, element: box });
+      });
+      generateTextInputs();
+    }
+
+    function generateTextInputs() {
+      inputFields.innerHTML = "";
+      boxes.forEach((box, index) => {
+        const div = document.createElement("div");
+        div.className = "template-box-input";
+        const label = document.createElement("label");
+        label.textContent = box.name + ": ";
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = "input-" + index;
+        div.appendChild(label);
+        div.appendChild(input);
+        inputFields.appendChild(div);
+      });
+    }
+
+    function downloadImage() {
+      const width = templateImage.width;
+      const height = templateImage.height;
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(templateImage, 0, 0, width, height);
+
+      boxes.forEach((box, index) => {
+        const input = document.getElementById("input-" + index);
+        if (!input) return;
+        const left = parseInt(box.element.style.left);
+        const top = parseInt(box.element.style.top);
+        const fontSize = 14;
+        ctx.font = `${fontSize}px Arial`;
+        ctx.fillStyle = "black";
+        ctx.fillText(input.value, left + 5, top + fontSize + 5);
+      });
+
+      const link = document.createElement("a");
+      link.download = "filled_template.png";
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+  </script></body>
 </html>
