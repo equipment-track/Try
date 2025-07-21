@@ -13,6 +13,7 @@
       background: url('swr-template.jpg') no-repeat;
       background-size: cover;
       margin-bottom: 20px;
+      border: 1px solid #ccc;
     }
     .field {
       position: absolute;
@@ -21,12 +22,11 @@
       padding: 2px;
       font-size: 12px;
     }
-
-    /* Position each yellow field (example positions, may need adjustment) */
+    /* Position each yellow field */
     #name { top: 110px; left: 180px; width: 200px; }
     #initials { top: 140px; left: 180px; width: 100px; }
     #phone { top: 170px; left: 180px; width: 100px; }
-#phone2 { top: 170px; left: 300px; width: 100px; }
+    #phone2 { top: 170px; left: 300px; width: 100px; }
     #location { top: 240px; left: 180px; width: 200px; }
     #description { top: 270px; left: 50px; width: 670px; height: 40px; }
     #remarks { top: 350px; left: 400px; width: 320px; height: 100px; }
@@ -37,6 +37,8 @@
 
 <h3>Fill the Form</h3>
 <div>
+  <label>Template Image: <input type="file" id="templateInput" accept="image/*"></label><br><br>
+
   <label>Name: <input id="input_name"></label><br>
   <label>Initials: <input id="input_initials"></label><br>
   <label>Phone: <input id="input_phone"></label>
@@ -46,9 +48,12 @@
   <label>Remarks: <textarea id="input_remarks" rows="2" cols="40"></textarea></label><br>
   <label>Signature: <input id="input_signature"></label><br>
   <button onclick="fillForm()">Auto Fill</button>
+  <button onclick="downloadImage()">Download as Image</button>
 </div>
 
-<div class="template">
+<br>
+
+<div class="template" id="formContainer">
   <input id="name" class="field">
   <input id="initials" class="field">
   <input id="phone" class="field">
@@ -59,9 +64,11 @@
   <input id="signature" class="field">
 </div>
 
+<canvas id="canvas" width="768" height="994" style="display:none;"></canvas>
+
 <script>
 function fillForm() {
-document.getElementById("name").value = document.getElementById("input_name").value;
+  document.getElementById("name").value = document.getElementById("input_name").value;
   document.getElementById("initials").value = document.getElementById("input_initials").value;
   document.getElementById("phone").value = document.getElementById("input_phone").value;
   document.getElementById("phone2").value = document.getElementById("input_phone2").value;
@@ -69,6 +76,59 @@ document.getElementById("name").value = document.getElementById("input_name").va
   document.getElementById("description").value = document.getElementById("input_description").value;
   document.getElementById("remarks").value = document.getElementById("input_remarks").value;
   document.getElementById("signature").value = document.getElementById("input_signature").value;
+}
+
+let backgroundImage = new Image();
+backgroundImage.src = 'swr-template.jpg';
+
+document.getElementById('templateInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      backgroundImage.src = evt.target.result;
+      document.querySelector('.template').style.backgroundImage = `url(${evt.target.result})`;
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+function downloadImage() {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  // Draw background
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+
+  // Define field positions and values
+  const fields = [
+    { id: "name", top: 110, left: 180 },
+    { id: "initials", top: 140, left: 180 },
+    { id: "phone", top: 170, left: 180 },
+    { id: "phone2", top: 170, left: 300 },
+    { id: "location", top: 240, left: 180 },
+    { id: "description", top: 270, left: 50 },
+    { id: "remarks", top: 350, left: 400 },
+    { id: "signature", top: 470, left: 50 },
+  ];
+
+  ctx.font = "12px sans-serif";
+  ctx.fillStyle = "black";
+
+  fields.forEach(field => {
+    const el = document.getElementById(field.id);
+    const value = el.value || el.innerText;
+    const lines = value.split("\n");
+    lines.forEach((line, i) => {
+      ctx.fillText(line, field.left, field.top + i * 14);
+    });
+  });
+
+  const link = document.createElement("a");
+  link.download = "filled-form.png";
+  link.href = canvas.toDataURL("image/png");
+  link.click();
 }
 </script>
 
