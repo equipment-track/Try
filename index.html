@@ -1,136 +1,147 @@
-<!DOCTYPE html>
-<html>
+<!DOCTYPE html><html>
 <head>
-  <title>SWR Auto-Fill Form</title>
+  <title>Dynamic Template Editor</title>
   <style>
-    body {
-      font-family: sans-serif;
-    }
-    .template {
+    body { font-family: sans-serif; }
+    #templateContainer {
       position: relative;
       width: 768px;
       height: 994px;
-      background: url('swr-template.jpg') no-repeat;
+      border: 1px solid #ccc;
       background-size: cover;
       margin-bottom: 20px;
-      border: 1px solid #ccc;
     }
     .field {
       position: absolute;
-      border: none;
-      background-color: rgba(255, 255, 150, 0.8);
+      border: 1px dashed #ccc;
+      background-color: rgba(255,255,150,0.8);
       padding: 2px;
       font-size: 12px;
+      resize: both;
+      overflow: auto;
     }
-    /* Position each yellow field */
-    #name { top: 110px; left: 180px; width: 200px; }
-    #initials { top: 140px; left: 180px; width: 100px; }
-    #phone { top: 170px; left: 180px; width: 100px; }
-    #phone2 { top: 170px; left: 300px; width: 100px; }
-    #location { top: 240px; left: 180px; width: 200px; }
-    #description { top: 270px; left: 50px; width: 670px; height: 40px; }
-    #remarks { top: 350px; left: 400px; width: 320px; height: 100px; }
-    #signature { top: 470px; left: 50px; width: 150px; }
+    input[type="text"], textarea {
+      width: 200px;
+    }
+    #previewCanvas {
+      display: none;
+    }
   </style>
 </head>
-<body>
+<body><h3>Step 1: Upload Template Image and Add/Edit Fields</h3>
+<input type="file" id="templateInput" accept="image/*"><br>
+<button onclick="addBox()">Add Box</button>
+<button onclick="saveTemplate()">Save Template</button>
+<button onclick="loadTemplate()">Load Saved Template</button><h3>Step 2: Enter Values for Boxes</h3>
+<div id="valueInputs"></div>
+<button onclick="previewTemplate()">Preview</button>
+<button onclick="downloadImage()">Download Image</button><h3>Template Preview</h3>
+<div id="templateContainer"></div>
+<canvas id="previewCanvas" width="768" height="994"></canvas><script>
+let templateImage = new Image();
+let boxCounter = 0;
+let boxes = [];
 
-<h3>Fill the Form</h3>
-<div>
-  <label>Template Image: <input type="file" id="templateInput" accept="image/*"></label><br><br>
+function addBox(name = "Box" + (boxCounter+1), top = 50, left = 50, width = 150, height = 20) {
+  const id = `box_${boxCounter++}`;
+  const box = document.createElement('div');
+  box.className = 'field';
+  box.contentEditable = true;
+  box.style.top = top + 'px';
+  box.style.left = left + 'px';
+  box.style.width = width + 'px';
+  box.style.height = height + 'px';
+  box.dataset.name = name;
+  box.id = id;
+  box.draggable = true;
 
-  <label>Name: <input id="input_name"></label><br>
-  <label>Initials: <input id="input_initials"></label><br>
-  <label>Phone: <input id="input_phone"></label>
-  <label>Ext: <input id="input_phone2"></label><br>
-  <label>Location: <input id="input_location"></label><br>
-  <label>Description: <input id="input_description"></label><br>
-  <label>Remarks: <textarea id="input_remarks" rows="2" cols="40"></textarea></label><br>
-  <label>Signature: <input id="input_signature"></label><br>
-  <button onclick="fillForm()">Auto Fill</button>
-  <button onclick="downloadImage()">Download as Image</button>
-</div>
-
-<br>
-
-<div class="template" id="formContainer">
-  <input id="name" class="field">
-  <input id="initials" class="field">
-  <input id="phone" class="field">
-  <input id="phone2" class="field">
-  <input id="location" class="field">
-  <input id="description" class="field">
-  <textarea id="remarks" class="field"></textarea>
-  <input id="signature" class="field">
-</div>
-
-<canvas id="canvas" width="768" height="994" style="display:none;"></canvas>
-
-<script>
-function fillForm() {
-  document.getElementById("name").value = document.getElementById("input_name").value;
-  document.getElementById("initials").value = document.getElementById("input_initials").value;
-  document.getElementById("phone").value = document.getElementById("input_phone").value;
-  document.getElementById("phone2").value = document.getElementById("input_phone2").value;
-  document.getElementById("location").value = document.getElementById("input_location").value;
-  document.getElementById("description").value = document.getElementById("input_description").value;
-  document.getElementById("remarks").value = document.getElementById("input_remarks").value;
-  document.getElementById("signature").value = document.getElementById("input_signature").value;
+  makeDraggableResizable(box);
+  document.getElementById('templateContainer').appendChild(box);
+  boxes.push({ id, name });
 }
 
-let backgroundImage = new Image();
-backgroundImage.src = 'swr-template.jpg';
+function makeDraggableResizable(el) {
+  el.onmousedown = function(e) {
+    const offsetX = e.clientX - el.offsetLeft;
+    const offsetY = e.clientY - el.offsetTop;
+    function moveAt(e) {
+      el.style.left = (e.clientX - offsetX) + 'px';
+      el.style.top = (e.clientY - offsetY) + 'px';
+    }
+    document.onmousemove = moveAt;
+    document.onmouseup = () => document.onmousemove = null;
+  };
+}
 
 document.getElementById('templateInput').addEventListener('change', function(e) {
   const file = e.target.files[0];
   if (file) {
     const reader = new FileReader();
     reader.onload = function(evt) {
-      backgroundImage.src = evt.target.result;
-      document.querySelector('.template').style.backgroundImage = `url(${evt.target.result})`;
+      templateImage.src = evt.target.result;
+      document.getElementById('templateContainer').style.backgroundImage = `url(${evt.target.result})`;
     };
     reader.readAsDataURL(file);
   }
 });
 
+function saveTemplate() {
+  const fields = Array.from(document.getElementsByClassName('field')).map(box => ({
+    id: box.id,
+    name: box.dataset.name,
+    top: parseInt(box.style.top),
+    left: parseInt(box.style.left),
+    width: parseInt(box.style.width),
+    height: parseInt(box.style.height)
+  }));
+  localStorage.setItem('savedTemplate', JSON.stringify(fields));
+  alert('Template saved!');
+}
+
+function loadTemplate() {
+  const saved = localStorage.getItem('savedTemplate');
+  if (saved) {
+    document.getElementById('templateContainer').innerHTML = '';
+    boxes = [];
+    boxCounter = 0;
+    const data = JSON.parse(saved);
+    data.forEach(field => addBox(field.name, field.top, field.left, field.width, field.height));
+    alert('Template loaded.');
+  }
+}
+
+function previewTemplate() {
+  const container = document.getElementById('valueInputs');
+  container.innerHTML = '';
+  boxes.forEach(box => {
+    const input = document.createElement('input');
+    input.placeholder = box.name;
+    input.id = `input_${box.id}`;
+    container.appendChild(document.createTextNode(box.name + ': '));
+    container.appendChild(input);
+    container.appendChild(document.createElement('br'));
+  });
+}
+
 function downloadImage() {
-  const canvas = document.getElementById('canvas');
+  const canvas = document.getElementById('previewCanvas');
   const ctx = canvas.getContext('2d');
 
-  // Draw background
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
 
-  // Define field positions and values
-  const fields = [
-    { id: "name", top: 110, left: 180 },
-    { id: "initials", top: 140, left: 180 },
-    { id: "phone", top: 170, left: 180 },
-    { id: "phone2", top: 170, left: 300 },
-    { id: "location", top: 240, left: 180 },
-    { id: "description", top: 270, left: 50 },
-    { id: "remarks", top: 350, left: 400 },
-    { id: "signature", top: 470, left: 50 },
-  ];
-
-  ctx.font = "12px sans-serif";
-  ctx.fillStyle = "black";
-
-  fields.forEach(field => {
-    const el = document.getElementById(field.id);
-    const value = el.value || el.innerText;
-    const lines = value.split("\n");
-    lines.forEach((line, i) => {
-      ctx.fillText(line, field.left, field.top + i * 14);
-    });
+  boxes.forEach(box => {
+    const inputVal = document.getElementById(`input_${box.id}`)?.value || '';
+    const div = document.getElementById(box.id);
+    ctx.font = '12px sans-serif';
+    ctx.fillStyle = 'black';
+    ctx.fillText(inputVal, parseInt(div.style.left), parseInt(div.style.top) + 12);
   });
 
-  const link = document.createElement("a");
-  link.download = "filled-form.png";
-  link.href = canvas.toDataURL("image/png");
+  const link = document.createElement('a');
+  link.download = 'filled-template.png';
+  link.href = canvas.toDataURL();
   link.click();
 }
-</script>
-
-</body>
+</script></body>
 </html>
