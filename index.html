@@ -2,234 +2,247 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Template Creator</title>
+  <title>Template Editor</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 10px;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f0f0f0;
     }
-    #templateContainer {
+    #controls, #inputSection {
+      margin: 10px;
+    }
+    #canvasWrapper {
       position: relative;
-      display: inline-block;
+      border: 1px solid #ccc;
+      width: fit-content;
+      overflow: hidden;
     }
     #templateImage {
+      display: block;
       max-width: 100%;
     }
     .box {
-      border: 2px dashed yellow;
       position: absolute;
+      border: 2px dashed yellow;
+      background-color: rgba(255, 255, 0, 0.3);
       resize: both;
-      overflow: hidden;
+      overflow: auto;
       min-width: 30px;
       min-height: 30px;
     }
-    .label {
-      background: yellow;
-      color: black;
-      font-size: 12px;
-      padding: 2px;
-      display: inline-block;
-    }
     .drag-handle {
+      position: absolute;
+      top: -10px;
+      left: -10px;
+      background: #ff0;
+      color: #000;
+      border-radius: 50%;
       width: 20px;
       height: 20px;
-      background: yellow;
-      color: black;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-weight: bold;
-      text-align: center;
-      line-height: 20px;
-      position: absolute;
-      bottom: 0;
-      right: 0;
-      cursor: move;
+      cursor: grab;
     }
-    .template-box-input {
-      margin-bottom: 10px;
+    #inputSection label {
+      display: block;
+      margin: 5px 0 2px;
     }
-    canvas {
-      display: none;
+    #templateList button {
+      display: block;
+      margin: 5px 0;
     }
   </style>
 </head>
 <body>
-  <h2>Template Creator</h2>
-  <input type="file" id="imageUploader" accept="image/*" />
-  <input type="text" id="templateName" placeholder="Template Name" />
-  <button onclick="addNewBox()">Add New Box</button>
-  <button onclick="saveTemplate()">Save Template</button>
-  <button onclick="loadTemplates()">Load Template</button>
-  <button onclick="generateTextInputs()">Generate Text</button>
-  <button onclick="downloadImage()">Download</button>  <div id="inputFields"></div>  <div id="templateContainer">
+  <div id="controls">
+    <input type="file" id="uploadImage" accept="image/*" />
+    <button onclick="addBox()">Add Box</button>
+    <button onclick="saveTemplate()">Save Template</button>
+    <button onclick="loadTemplateList()">Load Template</button>
+    <button onclick="generateText()">Generate Text</button>
+    <button onclick="downloadImage()">Download</button>
+  </div>
+  <div id="canvasWrapper">
     <img id="templateImage" />
-  </div><canvas id="previewCanvas"></canvas>
+  </div>
+  <div id="inputSection"></div>
+  <div id="templateList"></div>  <script>
+    let currentBoxes = [];
+    let templateName = "";
 
-  <script>
-    const templateContainer = document.getElementById("templateContainer");
-    const templateImage = document.getElementById("templateImage");
-    const inputFields = document.getElementById("inputFields");
-    const canvas = document.getElementById("previewCanvas");
-    let boxes = [];
-
-    document.getElementById("imageUploader").addEventListener("change", function (e) {
+    document.getElementById('uploadImage').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
       const reader = new FileReader();
       reader.onload = function (event) {
-        templateImage.src = event.target.result;
+        document.getElementById('templateImage').src = event.target.result;
       };
-      reader.readAsDataURL(e.target.files[0]);
+      reader.readAsDataURL(file);
     });
 
-    function makeDraggable(box) {
-      const dragHandle = box.querySelector(".drag-handle");
-      dragHandle.addEventListener("mousedown", function (e) {
-        e.preventDefault();
-        const offsetX = e.clientX - box.offsetLeft;
-        const offsetY = e.clientY - box.offsetTop;
-
-        function mouseMoveHandler(e) {
-          box.style.left = e.clientX - offsetX + "px";
-          box.style.top = e.clientY - offsetY + "px";
-        }
-
-        function mouseUpHandler() {
-          document.removeEventListener("mousemove", mouseMoveHandler);
-          document.removeEventListener("mouseup", mouseUpHandler);
-        }
-
-        document.addEventListener("mousemove", mouseMoveHandler);
-        document.addEventListener("mouseup", mouseUpHandler);
-      });
-    }
-
-    function addNewBox() {
-      const name = prompt("Enter box label name:");
+    function addBox() {
+      const name = prompt("Enter Box Name:");
       if (!name) return;
 
-      const box = document.createElement("div");
-      box.className = "box";
-      box.style.left = "50px";
-      box.style.top = "50px";
-      box.style.width = "100px";
-      box.style.height = "50px";
+      const box = document.createElement('div');
+      box.className = 'box';
+      box.style.left = '50px';
+      box.style.top = '50px';
+      box.dataset.name = name;
 
-      const label = document.createElement("div");
-      label.className = "label";
-      label.textContent = name;
+      const handle = document.createElement('div');
+      handle.className = 'drag-handle';
+      handle.innerText = '+';
+      box.appendChild(handle);
 
-      const dragHandle = document.createElement("div");
-      dragHandle.className = "drag-handle";
-      dragHandle.textContent = "+";
+      handle.addEventListener('mousedown', startDrag);
+      handle.addEventListener('touchstart', startDrag);
 
-      box.appendChild(label);
-      box.appendChild(dragHandle);
-      templateContainer.appendChild(box);
-      makeDraggable(box);
+      document.getElementById('canvasWrapper').appendChild(box);
+      currentBoxes.push(box);
 
-      boxes.push({ name, element: box });
+      updateInputSection();
+    }
+
+    function updateInputSection() {
+      const inputSection = document.getElementById('inputSection');
+      inputSection.innerHTML = '';
+      currentBoxes.forEach(box => {
+        const label = document.createElement('label');
+        label.innerText = box.dataset.name;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.dataset.name = box.dataset.name;
+        inputSection.appendChild(label);
+        inputSection.appendChild(input);
+      });
     }
 
     function saveTemplate() {
-      const name = document.getElementById("templateName").value;
-      if (!name) return alert("Enter a template name");
+      templateName = prompt("Enter Template Name to Save:");
+      if (!templateName) return;
 
-      const data = {
-        image: templateImage.src,
-        boxes: boxes.map((b) => ({
-          name: b.name,
-          left: b.element.style.left,
-          top: b.element.style.top,
-          width: b.element.style.width,
-          height: b.element.style.height
-        }))
-      };
-
-      localStorage.setItem("template-" + name, JSON.stringify(data));
-      alert("Template saved");
+      const imageSrc = document.getElementById('templateImage').src;
+      const boxData = currentBoxes.map(box => ({
+        name: box.dataset.name,
+        left: box.style.left,
+        top: box.style.top,
+        width: box.offsetWidth,
+        height: box.offsetHeight
+      }));
+      const template = { imageSrc, boxData };
+      localStorage.setItem("template_" + templateName, JSON.stringify(template));
+      alert("Template saved!");
     }
 
-    function loadTemplates() {
-      inputFields.innerHTML = "";
-      const keys = Object.keys(localStorage).filter(k => k.startsWith("template-"));
-      const list = document.createElement("ul");
-      keys.forEach(key => {
-        const li = document.createElement("li");
-        const btn = document.createElement("button");
-        btn.textContent = key.replace("template-", "");
-        btn.onclick = () => loadTemplate(key);
-        li.appendChild(btn);
-        list.appendChild(li);
-      });
-      inputFields.appendChild(list);
+    function loadTemplateList() {
+      const list = document.getElementById('templateList');
+      list.innerHTML = '';
+      for (let key in localStorage) {
+        if (key.startsWith('template_')) {
+          const btn = document.createElement('button');
+          btn.innerText = key.replace('template_', '');
+          btn.onclick = () => loadTemplate(key);
+          list.appendChild(btn);
+        }
+      }
     }
 
     function loadTemplate(key) {
-      const data = JSON.parse(localStorage.getItem(key));
-      templateImage.src = data.image;
-      boxes.forEach(b => b.element.remove());
-      boxes = [];
-      data.boxes.forEach(info => {
-        const box = document.createElement("div");
-        box.className = "box";
-        box.style.left = info.left;
-        box.style.top = info.top;
-        box.style.width = info.width;
-        box.style.height = info.height;
+      const { imageSrc, boxData } = JSON.parse(localStorage.getItem(key));
+      document.getElementById('templateImage').src = imageSrc;
+      currentBoxes.forEach(b => b.remove());
+      currentBoxes = [];
 
-        const label = document.createElement("div");
-        label.className = "label";
-        label.textContent = info.name;
+      boxData.forEach(data => {
+        const box = document.createElement('div');
+        box.className = 'box';
+        box.style.left = data.left;
+        box.style.top = data.top;
+        box.style.width = data.width + 'px';
+        box.style.height = data.height + 'px';
+        box.dataset.name = data.name;
 
-        const dragHandle = document.createElement("div");
-        dragHandle.className = "drag-handle";
-        dragHandle.textContent = "+";
+        const handle = document.createElement('div');
+        handle.className = 'drag-handle';
+        handle.innerText = '+';
+        box.appendChild(handle);
 
-        box.appendChild(label);
-        box.appendChild(dragHandle);
-        templateContainer.appendChild(box);
-        makeDraggable(box);
-        boxes.push({ name: info.name, element: box });
+        handle.addEventListener('mousedown', startDrag);
+        handle.addEventListener('touchstart', startDrag);
+
+        document.getElementById('canvasWrapper').appendChild(box);
+        currentBoxes.push(box);
       });
-      generateTextInputs();
+      updateInputSection();
     }
 
-    function generateTextInputs() {
-      inputFields.innerHTML = "";
-      boxes.forEach((box, index) => {
-        const div = document.createElement("div");
-        div.className = "template-box-input";
-        const label = document.createElement("label");
-        label.textContent = box.name + ": ";
-        const input = document.createElement("input");
-        input.type = "text";
-        input.id = "input-" + index;
-        div.appendChild(label);
-        div.appendChild(input);
-        inputFields.appendChild(div);
+    function generateText() {
+      currentBoxes.forEach(box => {
+        box.innerHTML = '';
+        const handle = document.createElement('div');
+        handle.className = 'drag-handle';
+        handle.innerText = '+';
+        box.appendChild(handle);
+
+        handle.addEventListener('mousedown', startDrag);
+        handle.addEventListener('touchstart', startDrag);
+
+        const text = document.querySelector(`#inputSection input[data-name='${box.dataset.name}']`).value;
+        const span = document.createElement('span');
+        span.innerText = text;
+        span.style.position = 'absolute';
+        span.style.top = '30%';
+        span.style.left = '5px';
+        span.style.fontSize = '14px';
+        box.appendChild(span);
       });
     }
 
     function downloadImage() {
-      const width = templateImage.width;
-      const height = templateImage.height;
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(templateImage, 0, 0, width, height);
-
-      boxes.forEach((box, index) => {
-        const input = document.getElementById("input-" + index);
-        if (!input) return;
-        const left = parseInt(box.element.style.left);
-        const top = parseInt(box.element.style.top);
-        const fontSize = 14;
-        ctx.font = `${fontSize}px Arial`;
-        ctx.fillStyle = "black";
-        ctx.fillText(input.value, left + 5, top + fontSize + 5);
+      generateText();
+      html2canvas(document.getElementById('canvasWrapper')).then(canvas => {
+        const link = document.createElement('a');
+        link.download = templateName + '.png';
+        link.href = canvas.toDataURL();
+        link.click();
       });
-
-      const link = document.createElement("a");
-      link.download = "filled_template.png";
-      link.href = canvas.toDataURL();
-      link.click();
     }
-  </script></body>
+
+    function startDrag(e) {
+      e.preventDefault();
+      const box = e.target.parentElement;
+      const shiftX = (e.clientX || e.touches[0].clientX) - box.getBoundingClientRect().left;
+      const shiftY = (e.clientY || e.touches[0].clientY) - box.getBoundingClientRect().top;
+
+      function moveAt(pageX, pageY) {
+        box.style.left = pageX - shiftX + 'px';
+        box.style.top = pageY - shiftY + 'px';
+      }
+
+      function onMouseMove(e) {
+        moveAt((e.clientX || e.touches[0].clientX), (e.clientY || e.touches[0].clientY));
+      }
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('touchmove', onMouseMove);
+
+      function stopDrag() {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('touchmove', onMouseMove);
+        document.removeEventListener('mouseup', stopDrag);
+        document.removeEventListener('touchend', stopDrag);
+      }
+
+      document.addEventListener('mouseup', stopDrag);
+      document.addEventListener('touchend', stopDrag);
+    }
+  </script>  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script></body>
 </html>
