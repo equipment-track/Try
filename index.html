@@ -5,314 +5,621 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Template Box Editor</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
+    :root {
+      --main-bg: #ecf0f3;
+      --shadow: 0 8px 24px rgba(34,34,68,0.09), 0 1.5px 2px 0 #fff,-1.5px 0 2px 0 #fff inset;
+      --neum-light: #f7fafb;
+      --neum-dark: #d6d9e0;
+      --blue: #276ef1;
+      --yellow: #ffd600;
+      --red: #ea345e;
+      --transition: 0.3s cubic-bezier(.77,0,.18,1);
+    }
+
+    html, body {
+      min-height: 100vh;
+      background: var(--main-bg);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
       padding: 0;
-      background-color: #f0f2f5;
-      color: #333;
+      color: #21223a;
     }
     .container {
-      padding: 20px;
-      max-width: 900px;
-      margin: auto;
+      max-width: 960px;
+      margin: 20px auto;
+      background: var(--neum-light);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 24px;
     }
-    .template-area {
-      position: relative;
-      display: inline-block;
-      border: 2px solid #ccc;
+    h2 {
+      text-align: center;
+      margin-bottom: 0.7em;
+      letter-spacing: 0.1em;
+      color: var(--blue);
     }
-    .highlight-box {
-      position: absolute;
-      border: 2px dashed yellow;
-      resize: both;
-      overflow: auto;
-      padding: 2px;
-      min-width: 50px;
-      min-height: 20px;
-    }
-    .highlight-box .drag-handle {
-      cursor: move;
-      background: yellow;
-      color: black;
-      font-weight: bold;
-      font-size: 12px;
-      padding: 2px 4px;
-      position: absolute;
-      top: -14px;
-      left: 0;
-      z-index: 10;
-    }
-    .input-section, .output-section {
-      margin-top: 20px;
-      padding: 10px;
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    input, select {
-      margin-bottom: 10px;
-      padding: 6px;
-      width: 100%;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    label {
-      font-weight: bold;
-    }
+
     .controls {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
+      background: var(--main-bg);
+      box-shadow: var(--shadow);
       margin-bottom: 10px;
+      border-radius: 10px;
+      padding: 10px;
     }
-    button {
-      padding: 10px 16px;
+    .controls input, .controls button {
+      font-size: 1.1em;
+      min-width: 140px;
+      border-radius: 6px;
       border: none;
-      background: #007bff;
-      color: white;
-      border-radius: 4px;
+      padding: 10px;
+      box-shadow: var(--shadow);
+      transition: all var(--transition);
+      margin-bottom: 6px;
+    }
+    .controls input {
+      background: var(--neum-light);
+      border: 1.5px solid #dde5ef;
+    }
+    .controls button {
+      color: #fff;
+      background: var(--blue);
+      font-weight: 600;
       cursor: pointer;
-      transition: background 0.3s ease;
+      margin-right: 0.5em;
+      min-width: 100px;
+      box-shadow: 0 2px 8px rgba(39, 110, 241, 0.09);
     }
-    button:hover {
-      background: #0056b3;
+    .controls button:hover {
+      background: #013e99;
+      letter-spacing: 0.04em;
+      transform: translateY(-2px) scale(1.02);
     }
-    canvas {
-      margin-top: 20px;
+
+    .template-area {
+      position: relative;
+      margin: 0 auto 18px auto;
+      background: var(--main-bg);
+      box-shadow: var(--shadow);
+      border-radius: 15px;
+      overflow: auto;
+      min-height: 240px;
+      min-width: 200px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      transition: box-shadow 0.2s;
+    }
+    .template-area img {
+      border-radius: 10px;
+      display: block;
       max-width: 100%;
+      height: auto;
+      pointer-events: none;
     }
+
+    .highlight-box {
+      position: absolute;
+      border: 2.5px dashed var(--yellow);
+      background: rgba(255,255,0,0.11);
+      border-radius: 8px;
+      transition: box-shadow 0.2s, background 0.2s, border 0.4s, transform 320ms cubic-bezier(.4,1.26,.41,.97);
+      min-width: 60px;
+      min-height: 24px;
+      z-index: 10;
+      animation: boxGrow 0.45s cubic-bezier(.5,1.7,.23,.88);
+      box-shadow: 0 2px 20px 0 #ffd60033;
+    }
+    @keyframes boxGrow {
+      from { transform: scale(0.5); opacity: 0.3; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .highlight-box.selected {
+      border: 2.5px solid var(--blue);
+      background: rgba(39,110,241,0.08);
+      box-shadow: 0 4px 30px 0 #276ef167;
+    }
+    .highlight-box .drag-handle {
+      cursor: grab;
+      background: var(--yellow);
+      color: #333;
+      font-weight: bold;
+      padding: 3px 7px;
+      border-radius: 5px 5px 5px 0;
+      font-size: 13px;
+      position: absolute;
+      top: -16px;
+      left: 0;
+      box-shadow: 0 2px 8px #ffd6001a;
+      z-index: 12;
+      transition: background var(--transition), color var(--transition);
+      user-select: none;
+    }
+    .highlight-box .drag-handle:active {
+      background: var(--blue);
+      color: #fff;
+    }
+
     .template-list {
-      margin-top: 10px;
+      margin: 12px 0 12px 0;
+      gap: 8px;
+      display: flex;
+      flex-direction: column;
     }
     .template-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: #f9f9f9;
-      border: 1px solid #ddd;
-      padding: 8px;
-      border-radius: 4px;
-      margin-bottom: 5px;
+      background: var(--main-bg);
+      box-shadow: var(--shadow);
+      border-radius: 7px;
+      padding: 7px 14px;
+      margin-bottom: 4px;
     }
     .template-item span {
+      color: var(--blue);
       font-weight: bold;
+      font-size: 1.12em;
     }
     .template-item button {
-      background: #dc3545;
+      background: var(--red);
+      color: #fff;
+      font-weight: bold;
+      margin-left: 10px;
+      transition: transform var(--transition);
+    }
+    .template-item button:hover {
+      background: #a3122b;
+      transform: scale(1.05);
+    }
+    .template-item .loadBtn {
+      background: var(--blue);
+      color: #fff;
+      margin-right: 2px;
+    }
+
+    .input-section {
+      margin-top: 19px;
+      background: var(--neum-light);
+      padding: 9px 18px 13px 18px;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      min-height: 30px;
+    }
+    .input-section label {
+      font-weight: bold;
+      margin-right: 2px;
+    }
+    .input-section input {
+      padding: 5px 8px;
+      font-size: 1em;
+      margin-right: 12px;
+      border-radius: 6px;
+      border: 1px solid #cce;
+      min-width: 73px;
+      background: #f7fafb;
+      transition: border 0.2s;
+    }
+    .input-section input:focus {
+      border-color: var(--blue);
+      outline: none;
+    }
+    #outputCanvas {
+      margin-top: 20px;
+      background: #fff;
+      border: 1.5px solid #cce4ff;
+      border-radius: 7px;
+      display: block;
+      max-width: 100%;
+      box-shadow: var(--shadow);
+      transition: box-shadow 0.2s;
+    }
+    .btn-main {
+      display: inline-block;
+      margin: 18px 3px 0 3px;
+      padding: 9px 18px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 6px;
+      font-size: 1.07em;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: box-shadow var(--transition), background var(--transition), transform var(--transition);
+      box-shadow: 0 2px 16px 0 #276ef115;
+    }
+    .btn-main:hover {
+      background: #013e99;
+      transform: scale(1.04) translateY(-1px);
+    }
+    .toast {
+      position: fixed;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--blue);
+      color: #fff;
+      padding: 12px 28px;
+      border-radius: 6px;
+      font-size: 1.12em;
+      box-shadow: 0 5px 18px 0 #276ef177;
+      opacity: 0;
+      pointer-events: none;
+      animation: toast-in 0.3s forwards;
+      z-index: 9999;
+    }
+    @keyframes toast-in {
+      0% { opacity: 0; bottom: 10px;}
+      90% { opacity: 1; bottom: 36px;}
+      100% { opacity: 1; bottom: 25px;}
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 12340;
+      left: 0; top: 0;
+      width: 100vw; height: 100vh;
+      background-color: rgba(30,40,70,0.17);
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.35s;
+    }
+    @keyframes fadeIn {
+      from {opacity: 0;}
+      to {opacity: 1;}
+    }
+    .modal.show {
+      display: flex;
+    }
+    .modal-content {
+      background: var(--main-bg);
+      border-radius: 18px;
+      padding: 30px 40px 20px 40px;
+      min-width: 260px;
+      min-height: 110px;
+      box-shadow: 0 4px 32px 0 #1238;
+      text-align: center;
+      position: relative;
+      animation: modalIn .28s cubic-bezier(.33,1.7,.41,.97);
+    }
+    @keyframes modalIn {
+      from { transform: translateY(-30px) scale(.9); opacity: 0;}
+      to { transform: translateY(0) scale(1); opacity: 1;}
+    }
+    .modal-content .close {
+      position: absolute;
+      top: 12px;
+      right: 18px;
+      font-size: 2em;
+      cursor: pointer;
+      color: #ccc;
+      z-index: 2;
+      transition: color 0.18s;
+    }
+    .modal-content .close:hover {
+      color: var(--red);
+    }
+    .modal-content button {
+      margin: 0 8px;
+      box-shadow: var(--shadow);
+    }
+
+    @media (max-width: 850px) {
+      .container { padding: 10px; }
+      .template-area { max-width: 100vw; overflow-x: auto; }
+      .modal-content { padding: 16px 9vw 20px 9vw;}
+      h2 {font-size: 1.22em;}
+      .controls input, .controls button { min-width: 80px;}
+    }
+    @media (max-width: 540px) {
+      .container { padding: 0;}
+      .controls{ flex-direction: column; gap: 5px;}
+      .input-section {padding: 6px 3px 9px 3px;}
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h2>Template Box Editor</h2>
-    <input type="file" id="imageUpload" accept="image/*" />
+    <input type="file" id="imageUpload" accept="image/*"/>
     <div class="controls">
-      <input type="text" id="boxName" placeholder="Enter box name before adding" />
+      <input type="text" id="boxName" placeholder="Enter box name before adding"/>
       <button onclick="addBox()">Add Box</button>
-      <input type="text" id="templateName" placeholder="Template name" />
+      <input type="text" id="templateName" placeholder="Template name"/>
       <button onclick="saveTemplate()">Save Template</button>
       <button onclick="loadTemplates()">Load Templates</button>
     </div>
     <div class="template-area" id="templateArea"></div>
     <div class="template-list" id="templateList"></div>
-
     <div class="input-section" id="inputFields"></div>
-    <button onclick="generateText()">Generate Text</button>
+    <button class="btn-main" onclick="generateText()">Generate Text</button>
     <canvas id="outputCanvas"></canvas>
-    <button onclick="downloadImage()">Download</button>
+    <button class="btn-main" onclick="downloadImage()">Download</button>
   </div>
+  <!-- Modal for delete confirmation -->
+  <div id="deleteModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <div id="modalMsg"></div>
+      <button id="confirmDelBtn" onclick="confirmDeleteTemplate()" class="btn-main" style="background:var(--red);margin-top:15px;">Delete</button>
+      <button onclick="closeModal()" class="btn-main" style="background:var(--blue);margin-top:15px;">Cancel</button>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script>
+    let image = new window.Image();
+    let boxes = [];
+    let imageURL = '';
+    let deleteKey = ''; // For which template to delete
 
-<script>
-let image = new Image();
-let boxes = [];
-let imageURL = '';
-
-document.getElementById('imageUpload').addEventListener('change', function (e) {
-  const file = e.target.files[0];
-  const reader = new FileReader();
-  reader.onload = function (event) {
-    imageURL = event.target.result;
-    image.onload = () => {
-      renderImage();
-    };
-    image.src = imageURL;
-  };
-  reader.readAsDataURL(file);
-});
-
-function renderImage() {
-  const area = document.getElementById('templateArea');
-  area.innerHTML = '';
-  area.style.width = image.width + 'px';
-  area.style.height = image.height + 'px';
-  area.appendChild(image);
-  boxes.forEach((box) => createBox(box));
-}
-
-function createBox(box) {
-  const div = document.createElement('div');
-  div.className = 'highlight-box';
-  div.style.left = box.left + 'px';
-  div.style.top = box.top + 'px';
-  div.style.width = box.width + 'px';
-  div.style.height = box.height + 'px';
-  div.setAttribute('data-name', box.name);
-
-  const drag = document.createElement('div');
-  drag.className = 'drag-handle';
-  drag.textContent = '+';
-  div.appendChild(drag);
-
-  drag.addEventListener('mousedown', dragStart);
-  drag.addEventListener('touchstart', dragStart);
-
-  div.addEventListener('mouseup', () => updateBoxPosition(div));
-  div.addEventListener('touchend', () => updateBoxPosition(div));
-
-  // Optional fallback for resize change detection (mostly for desktop)
-  const resizeObserver = new ResizeObserver(() => updateBoxPosition(div));
-  resizeObserver.observe(div);
-
-  document.getElementById('templateArea').appendChild(div);
-}
-
-function dragStart(e) {
-  e.preventDefault();
-  const box = e.target.parentElement;
-  const shiftX = (e.clientX || e.touches?.[0].clientX) - box.getBoundingClientRect().left;
-  const shiftY = (e.clientY || e.touches?.[0].clientY) - box.getBoundingClientRect().top;
-
-  function moveAt(pageX, pageY) {
-    box.style.left = pageX - shiftX + 'px';
-    box.style.top = pageY - shiftY + 'px';
-  }
-
-  function onPointerMove(ev) {
-    const pageX = ev.pageX || ev.touches?.[0].pageX;
-    const pageY = ev.pageY || ev.touches?.[0].pageY;
-    moveAt(pageX, pageY);
-  }
-
-  function stopDrag() {
-    document.removeEventListener('mousemove', onPointerMove);
-    document.removeEventListener('touchmove', onPointerMove);
-    updateBoxPosition(box);
-  }
-
-  document.addEventListener('mousemove', onPointerMove);
-  document.addEventListener('touchmove', onPointerMove);
-  document.addEventListener('mouseup', stopDrag, { once: true });
-  document.addEventListener('touchend', stopDrag, { once: true });
-}
-
-function updateBoxPosition(div) {
-  const name = div.getAttribute('data-name');
-  const rect = div.getBoundingClientRect();
-  const parentRect = document.getElementById('templateArea').getBoundingClientRect();
-  const left = rect.left - parentRect.left;
-  const top = rect.top - parentRect.top;
-  const width = rect.width;
-  const height = rect.height;
-
-  const box = boxes.find((b) => b.name === name);
-  if (box) {
-    box.left = left;
-    box.top = top;
-    box.width = width;
-    box.height = height;
-  }
-}
-
-function addBox() {
-  const name = document.getElementById('boxName').value.trim();
-  if (!name) return alert('Enter a name for the box.');
-  const box = { name, left: 20, top: 20, width: 100, height: 50 };
-  boxes.push(box);
-  createBox(box);
-  document.getElementById('boxName').value = '';
-}
-
-function saveTemplate() {
-  const name = document.getElementById('templateName').value.trim();
-  if (!name) return alert('Enter template name.');
-  const data = { imageURL, boxes };
-  localStorage.setItem('template_' + name, JSON.stringify(data));
-  alert('Template saved!');
-  loadTemplates();
-}
-
-function loadTemplates() {
-  const list = document.getElementById('templateList');
-  list.innerHTML = '';
-  Object.keys(localStorage).forEach((key) => {
-    if (key.startsWith('template_')) {
-      const name = key.replace('template_', '');
-      const item = document.createElement('div');
-      item.className = 'template-item';
-      item.innerHTML = `<span>${name}</span>`;
-
-      const loadBtn = document.createElement('button');
-      loadBtn.textContent = 'Load';
-      loadBtn.onclick = () => {
-        const data = JSON.parse(localStorage.getItem(key));
-        imageURL = data.imageURL;
-        boxes = data.boxes;
-        image.src = imageURL;
-        image.onload = renderImage;
-        showInputs();
-      };
-
-      const delBtn = document.createElement('button');
-      delBtn.textContent = 'Delete';
-      delBtn.onclick = () => {
-        if (confirm('Are you sure to delete this template?')) {
-          localStorage.removeItem(key);
-          loadTemplates();
-        }
-      };
-
-      item.appendChild(loadBtn);
-      item.appendChild(delBtn);
-      list.appendChild(item);
+    // Toast notification
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.opacity = 1;
+      toast.style.display = 'block';
+      toast.classList.remove('hide');
+      setTimeout(() => {
+        toast.classList.add('hide');
+        setTimeout(() => { toast.style.display = 'none'; },250);
+      }, 1700);
     }
-  });
-}
 
-function showInputs() {
-  const inputDiv = document.getElementById('inputFields');
-  inputDiv.innerHTML = '';
-  boxes.forEach((b) => {
-    const label = document.createElement('label');
-    label.textContent = b.name;
-    const input = document.createElement('input');
-    input.setAttribute('data-name', b.name);
-    inputDiv.appendChild(label);
-    inputDiv.appendChild(input);
-  });
-}
+    // Modal
+    function showModal(msg, key) {
+      document.getElementById('modalMsg').innerHTML = msg;
+      document.getElementById('deleteModal').classList.add('show');
+      deleteKey = key || '';
+    }
+    function closeModal() {
+      document.getElementById('deleteModal').classList.remove('show');
+      deleteKey = '';
+    }
+    function confirmDeleteTemplate() {
+      if (deleteKey) {
+        localStorage.removeItem(deleteKey);
+        loadTemplates();
+        showToast("Template deleted!");
+      }
+      closeModal();
+    }
 
-function generateText() {
-  const canvas = document.getElementById('outputCanvas');
-  canvas.width = image.width;
-  canvas.height = image.height;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(image, 0, 0);
-  boxes.forEach((box) => {
-    const input = document.querySelector(`input[data-name='${box.name}']`);
-    ctx.fillStyle = 'black';
-    ctx.font = '16px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(input.value || '', box.left + 5, box.top + 20);
-  });
-}
+    // Image load
+    document.getElementById('imageUpload').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        imageURL = event.target.result;
+        image.onload = () => { renderImage(); showInputs(); };
+        image.src = imageURL;
+      };
+      reader.readAsDataURL(file);
+    });
 
-function downloadImage() {
-  const link = document.createElement('a');
-  link.download = 'output.png';
-  link.href = document.getElementById('outputCanvas').toDataURL();
-  link.click();
-}
-</script>
+    function renderImage() {
+      const area = document.getElementById('templateArea');
+      area.innerHTML = '';
+      area.style.width = image.width + 'px';
+      area.style.height = image.height + 'px';
+      area.appendChild(image);
+      boxes.forEach((box) => createBox(box));
+    }
+
+    // Drag+Resize with animation
+    function createBox(box) {
+      const div = document.createElement('div');
+      div.className = 'highlight-box animate-in';
+      div.style.left = box.left + 'px';
+      div.style.top = box.top + 'px';
+      div.style.width = box.width + 'px';
+      div.style.height = box.height + 'px';
+      div.setAttribute('data-name', box.name);
+
+      div.onmousedown = () => { selectBox(div); };
+      div.ontouchstart = () => { selectBox(div); };
+
+      const drag = document.createElement('div');
+      drag.className = 'drag-handle';
+      drag.textContent = '+';
+      div.appendChild(drag);
+
+      div.addEventListener('mousedown', dragStart);
+      div.addEventListener('touchstart', dragStart);
+      div.addEventListener('mouseup', () => updateBoxPosition(div));
+      div.addEventListener('touchend', () => updateBoxPosition(div));
+
+      // Add resize events
+      makeResizable(div);
+
+      document.getElementById('templateArea').appendChild(div);
+    }
+
+    function selectBox(div) {
+      Array.from(document.getElementsByClassName('highlight-box')).forEach(el => el.classList.remove('selected'));
+      div.classList.add('selected');
+    }
+
+    // Drag support
+    function dragStart(e) {
+      const isTouch = e.type.startsWith('touch');
+      e.preventDefault();
+      const box = e.target.closest('.highlight-box');
+      const area = document.getElementById('templateArea');
+      const startX = isTouch ? e.touches[0].clientX : e.clientX;
+      const startY = isTouch ? e.touches[0].clientY : e.clientY;
+      const origLeft = parseFloat(box.style.left);
+      const origTop = parseFloat(box.style.top);
+
+      function moveAt(x, y) {
+        let nx = origLeft + (x - startX);
+        let ny = origTop + (y - startY);
+        // Keep within template bounds
+        nx = Math.max(0, Math.min(nx, area.offsetWidth - box.offsetWidth));
+        ny = Math.max(0, Math.min(ny, area.offsetHeight - box.offsetHeight));
+        box.style.left = nx + 'px';
+        box.style.top = ny + 'px';
+      }
+      function onMove(e) {
+        moveAt(isTouch ? e.touches[0].clientX : e.clientX, isTouch ? e.touches[0].clientY : e.clientY);
+      }
+      function onEnd() {
+        document.removeEventListener(isTouch ? 'touchmove' : 'mousemove', onMove);
+        document.removeEventListener(isTouch ? 'touchend' : 'mouseup', onEnd);
+        updateBoxPosition(box);
+      }
+      document.addEventListener(isTouch ? 'touchmove' : 'mousemove', onMove, {passive: false});
+      document.addEventListener(isTouch ? 'touchend' : 'mouseup', onEnd, {passive: false});
+    }
+
+    // Allow resizing via bottom-right (default browser), and update box info after resize
+    function makeResizable(div) {
+      div.style.resize = 'both';
+      div.style.overflow = 'auto';
+      div.onmouseleave = function() { updateBoxPosition(div); };
+      div.onmouseup = function() { updateBoxPosition(div); };
+      div.ontouchend = function() { updateBoxPosition(div); };
+    }
+
+    function updateBoxPosition(div) {
+      const name = div.getAttribute('data-name');
+      const rect = div.getBoundingClientRect();
+      const areaRect = document.getElementById('templateArea').getBoundingClientRect();
+      const left = Math.max(0, rect.left - areaRect.left);
+      const top = Math.max(0, rect.top - areaRect.top);
+      const width = Math.min(rect.width, areaRect.width);
+      const height = Math.min(rect.height, areaRect.height);
+      let box = boxes.find((b) => b.name === name);
+      if (box) {
+        box.left = left;
+        box.top = top;
+        box.width = width;
+        box.height = height;
+      }
+    }
+
+    function addBox() {
+      const name = document.getElementById('boxName').value.trim();
+      if (!name) return showToast('Enter a box name!');
+      if (boxes.find(b=>b.name===name)) return showToast('Box name already exists!');
+      const box = { name, left: 20, top: 20, width: 120, height: 40 };
+      boxes.push(box);
+      createBox(box);
+      document.getElementById('boxName').value = '';
+      showInputs();
+      showToast('Box Added!');
+    }
+
+    function saveTemplate() {
+      const name = document.getElementById('templateName').value.trim();
+      if (!name) return showToast('Enter template name.');
+      if (!imageURL) return showToast('Upload image first.');
+      const data = { imageURL, boxes };
+      localStorage.setItem('template_' + name, JSON.stringify(data));
+      showToast('Template saved!');
+      loadTemplates();
+    }
+
+    function loadTemplates() {
+      const list = document.getElementById('templateList');
+      list.innerHTML = '';
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('template_')) {
+          const name = key.replace('template_', '');
+          const item = document.createElement('div');
+          item.className = 'template-item';
+
+          item.innerHTML = `<span>${name}</span>`;
+          const loadBtn = document.createElement('button');
+          loadBtn.textContent = 'Load';
+          loadBtn.className = 'loadBtn';
+          loadBtn.onclick = () => {
+            const data = JSON.parse(localStorage.getItem(key));
+            imageURL = data.imageURL;
+            boxes = data.boxes;
+            image.src = imageURL;
+            image.onload = renderImage;
+            showInputs();
+            showToast(`Loaded "${name}"`);
+          };
+
+          const delBtn = document.createElement('button');
+          delBtn.textContent = 'Delete';
+          delBtn.onclick = () => {
+            showModal(`Delete template "<strong>${name}</strong>"?`, key);
+          };
+
+          item.appendChild(loadBtn);
+          item.appendChild(delBtn);
+          list.appendChild(item);
+        }
+      });
+    }
+
+    function showInputs() {
+      const inputDiv = document.getElementById('inputFields');
+      inputDiv.innerHTML = '';
+      boxes.forEach((b) => {
+        const label = document.createElement('label');
+        label.textContent = b.name + ': ';
+        const input = document.createElement('input');
+        input.setAttribute('data-name', b.name);
+        input.setAttribute('placeholder', b.name + '…');
+        inputDiv.appendChild(label);
+        inputDiv.appendChild(input);
+      });
+    }
+
+    function generateText() {
+      if (!image.src) { showToast('Upload image first!'); return; }
+      const canvas = document.getElementById('outputCanvas');
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0);
+
+      boxes.forEach((box) => {
+        const input = document.querySelector(`input[data-name='${box.name}']`);
+        ctx.save();
+        ctx.fillStyle = '#122';
+        ctx.font = '17px Segoe UI, Arial';
+        ctx.textAlign = 'left';
+        let txt = (input ? input.value : '') || '';
+        // If text wider than box, shrink font
+        let fontSize = 17;
+        while(fontSize > 12 && ctx.measureText(txt).width > box.width - 10) {
+          fontSize--;
+          ctx.font = fontSize+'px Segoe UI, Arial';
+        }
+        ctx.fillText(txt, box.left + 5, box.top + fontSize + 4);
+        ctx.restore();
+      });
+      showToast('Image generated!');
+    }
+
+    function downloadImage() {
+      const link = document.createElement('a');
+      link.download = 'output.png';
+      link.href = document.getElementById('outputCanvas').toDataURL();
+      link.click();
+      showToast('Downloaded!');
+    }
+
+    // On first load
+    window.onload = () => {
+      loadTemplates();
+      // Deselect on area click
+      document.getElementById('templateArea').onclick = function(e){
+        if(e.target===this) Array.from(document.getElementsByClassName('highlight-box')).forEach(el=>el.classList.remove('selected'));
+      };
+    };
+  </script>
 </body>
 </html>
