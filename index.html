@@ -1,7 +1,8 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Template Box Editor</title>
   <style>
     body {
@@ -40,6 +41,7 @@
       position: absolute;
       top: -14px;
       left: 0;
+      z-index: 10;
     }
     .input-section, .output-section {
       margin-top: 20px;
@@ -112,197 +114,205 @@
       <button onclick="saveTemplate()">Save Template</button>
       <button onclick="loadTemplates()">Load Templates</button>
     </div>
-    <div class="template-area" id="templateArea"></div><div class="template-list" id="templateList"></div>
+    <div class="template-area" id="templateArea"></div>
+    <div class="template-list" id="templateList"></div>
 
-<div class="input-section" id="inputFields"></div>
-<button onclick="generateText()">Generate Text</button>
-<canvas id="outputCanvas"></canvas>
-<button onclick="downloadImage()">Download</button>
+    <div class="input-section" id="inputFields"></div>
+    <button onclick="generateText()">Generate Text</button>
+    <canvas id="outputCanvas"></canvas>
+    <button onclick="downloadImage()">Download</button>
+  </div>
 
-  </div>  <script>
-    let image = new Image();
-    let boxes = [];
-    let imageURL = '';
+<script>
+let image = new Image();
+let boxes = [];
+let imageURL = '';
 
-    document.getElementById('imageUpload').addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = function (event) {
-        imageURL = event.target.result;
-        image.onload = () => {
-          renderImage();
-        };
+document.getElementById('imageUpload').addEventListener('change', function (e) {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onload = function (event) {
+    imageURL = event.target.result;
+    image.onload = () => {
+      renderImage();
+    };
+    image.src = imageURL;
+  };
+  reader.readAsDataURL(file);
+});
+
+function renderImage() {
+  const area = document.getElementById('templateArea');
+  area.innerHTML = '';
+  area.style.width = image.width + 'px';
+  area.style.height = image.height + 'px';
+  area.appendChild(image);
+  boxes.forEach((box) => createBox(box));
+}
+
+function createBox(box) {
+  const div = document.createElement('div');
+  div.className = 'highlight-box';
+  div.style.left = box.left + 'px';
+  div.style.top = box.top + 'px';
+  div.style.width = box.width + 'px';
+  div.style.height = box.height + 'px';
+  div.setAttribute('data-name', box.name);
+
+  const drag = document.createElement('div');
+  drag.className = 'drag-handle';
+  drag.textContent = '+';
+  div.appendChild(drag);
+
+  drag.addEventListener('mousedown', dragStart);
+  drag.addEventListener('touchstart', dragStart);
+
+  div.addEventListener('mouseup', () => updateBoxPosition(div));
+  div.addEventListener('touchend', () => updateBoxPosition(div));
+
+  // Optional fallback for resize change detection (mostly for desktop)
+  const resizeObserver = new ResizeObserver(() => updateBoxPosition(div));
+  resizeObserver.observe(div);
+
+  document.getElementById('templateArea').appendChild(div);
+}
+
+function dragStart(e) {
+  e.preventDefault();
+  const box = e.target.parentElement;
+  const shiftX = (e.clientX || e.touches?.[0].clientX) - box.getBoundingClientRect().left;
+  const shiftY = (e.clientY || e.touches?.[0].clientY) - box.getBoundingClientRect().top;
+
+  function moveAt(pageX, pageY) {
+    box.style.left = pageX - shiftX + 'px';
+    box.style.top = pageY - shiftY + 'px';
+  }
+
+  function onPointerMove(ev) {
+    const pageX = ev.pageX || ev.touches?.[0].pageX;
+    const pageY = ev.pageY || ev.touches?.[0].pageY;
+    moveAt(pageX, pageY);
+  }
+
+  function stopDrag() {
+    document.removeEventListener('mousemove', onPointerMove);
+    document.removeEventListener('touchmove', onPointerMove);
+    updateBoxPosition(box);
+  }
+
+  document.addEventListener('mousemove', onPointerMove);
+  document.addEventListener('touchmove', onPointerMove);
+  document.addEventListener('mouseup', stopDrag, { once: true });
+  document.addEventListener('touchend', stopDrag, { once: true });
+}
+
+function updateBoxPosition(div) {
+  const name = div.getAttribute('data-name');
+  const rect = div.getBoundingClientRect();
+  const parentRect = document.getElementById('templateArea').getBoundingClientRect();
+  const left = rect.left - parentRect.left;
+  const top = rect.top - parentRect.top;
+  const width = rect.width;
+  const height = rect.height;
+
+  const box = boxes.find((b) => b.name === name);
+  if (box) {
+    box.left = left;
+    box.top = top;
+    box.width = width;
+    box.height = height;
+  }
+}
+
+function addBox() {
+  const name = document.getElementById('boxName').value.trim();
+  if (!name) return alert('Enter a name for the box.');
+  const box = { name, left: 20, top: 20, width: 100, height: 50 };
+  boxes.push(box);
+  createBox(box);
+  document.getElementById('boxName').value = '';
+}
+
+function saveTemplate() {
+  const name = document.getElementById('templateName').value.trim();
+  if (!name) return alert('Enter template name.');
+  const data = { imageURL, boxes };
+  localStorage.setItem('template_' + name, JSON.stringify(data));
+  alert('Template saved!');
+  loadTemplates();
+}
+
+function loadTemplates() {
+  const list = document.getElementById('templateList');
+  list.innerHTML = '';
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('template_')) {
+      const name = key.replace('template_', '');
+      const item = document.createElement('div');
+      item.className = 'template-item';
+      item.innerHTML = `<span>${name}</span>`;
+
+      const loadBtn = document.createElement('button');
+      loadBtn.textContent = 'Load';
+      loadBtn.onclick = () => {
+        const data = JSON.parse(localStorage.getItem(key));
+        imageURL = data.imageURL;
+        boxes = data.boxes;
         image.src = imageURL;
+        image.onload = renderImage;
+        showInputs();
       };
-      reader.readAsDataURL(file);
-    });
 
-    function renderImage() {
-      const area = document.getElementById('templateArea');
-      area.innerHTML = '';
-      area.style.width = image.width + 'px';
-      area.style.height = image.height + 'px';
-      area.appendChild(image);
-      boxes.forEach((box) => createBox(box));
-    }
-
-    function createBox(box) {
-      const div = document.createElement('div');
-      div.className = 'highlight-box';
-      div.contentEditable = false;
-      div.style.left = box.left + 'px';
-      div.style.top = box.top + 'px';
-      div.style.width = box.width + 'px';
-      div.style.height = box.height + 'px';
-      div.setAttribute('data-name', box.name);
-
-      const drag = document.createElement('div');
-      drag.className = 'drag-handle';
-      drag.textContent = '+';
-      div.appendChild(drag);
-
-      drag.addEventListener('mousedown', dragStart);
-      drag.addEventListener('touchstart', dragStart);
-
-      div.addEventListener('mouseup', () => updateBoxPosition(div));
-      div.addEventListener('touchend', () => updateBoxPosition(div));
-
-      document.getElementById('templateArea').appendChild(div);
-    }
-
-    function dragStart(e) {
-      e.preventDefault();
-      const box = e.target.parentElement;
-      const shiftX = e.clientX - box.getBoundingClientRect().left;
-      const shiftY = e.clientY - box.getBoundingClientRect().top;
-
-      function moveAt(pageX, pageY) {
-        box.style.left = pageX - shiftX + 'px';
-        box.style.top = pageY - shiftY + 'px';
-      }
-
-      function onMouseMove(e) {
-        moveAt(e.pageX, e.pageY);
-      }
-
-      document.addEventListener('mousemove', onMouseMove);
-
-      box.onmouseup = function () {
-        document.removeEventListener('mousemove', onMouseMove);
-        box.onmouseup = null;
-      };
-    }
-
-    function updateBoxPosition(div) {
-      const name = div.getAttribute('data-name');
-      const rect = div.getBoundingClientRect();
-      const parentRect = document.getElementById('templateArea').getBoundingClientRect();
-      const left = rect.left - parentRect.left;
-      const top = rect.top - parentRect.top;
-      const width = rect.width;
-      const height = rect.height;
-
-      const box = boxes.find((b) => b.name === name);
-      if (box) {
-        box.left = left;
-        box.top = top;
-        box.width = width;
-        box.height = height;
-      }
-    }
-
-    function addBox() {
-      const name = document.getElementById('boxName').value.trim();
-      if (!name) return alert('Enter a name for the box.');
-      const box = { name, left: 20, top: 20, width: 100, height: 50 };
-      boxes.push(box);
-      createBox(box);
-      document.getElementById('boxName').value = '';
-    }
-
-    function saveTemplate() {
-      const name = document.getElementById('templateName').value.trim();
-      if (!name) return alert('Enter template name.');
-      const data = {
-        imageURL,
-        boxes,
-      };
-      localStorage.setItem('template_' + name, JSON.stringify(data));
-      alert('Template saved!');
-      loadTemplates();
-    }
-
-    function loadTemplates() {
-      const list = document.getElementById('templateList');
-      list.innerHTML = '';
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith('template_')) {
-          const name = key.replace('template_', '');
-          const item = document.createElement('div');
-          item.className = 'template-item';
-          item.innerHTML = `<span>${name}</span>`;
-
-          const loadBtn = document.createElement('button');
-          loadBtn.textContent = 'Load';
-          loadBtn.onclick = () => {
-            const data = JSON.parse(localStorage.getItem(key));
-            imageURL = data.imageURL;
-            boxes = data.boxes;
-            image.src = imageURL;
-            image.onload = renderImage;
-            showInputs();
-          };
-
-          const delBtn = document.createElement('button');
-          delBtn.textContent = 'Delete';
-          delBtn.onclick = () => {
-            if (confirm('Are you sure to delete this template?')) {
-              localStorage.removeItem(key);
-              loadTemplates();
-            }
-          };
-
-          item.appendChild(loadBtn);
-          item.appendChild(delBtn);
-          list.appendChild(item);
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Delete';
+      delBtn.onclick = () => {
+        if (confirm('Are you sure to delete this template?')) {
+          localStorage.removeItem(key);
+          loadTemplates();
         }
-      });
-    }
+      };
 
-    function showInputs() {
-      const inputDiv = document.getElementById('inputFields');
-      inputDiv.innerHTML = '';
-      boxes.forEach((b) => {
-        const label = document.createElement('label');
-        label.textContent = b.name;
-        const input = document.createElement('input');
-        input.setAttribute('data-name', b.name);
-        inputDiv.appendChild(label);
-        inputDiv.appendChild(input);
-      });
+      item.appendChild(loadBtn);
+      item.appendChild(delBtn);
+      list.appendChild(item);
     }
+  });
+}
 
-    function generateText() {
-      const canvas = document.getElementById('outputCanvas');
-      canvas.width = image.width;
-      canvas.height = image.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(image, 0, 0);
+function showInputs() {
+  const inputDiv = document.getElementById('inputFields');
+  inputDiv.innerHTML = '';
+  boxes.forEach((b) => {
+    const label = document.createElement('label');
+    label.textContent = b.name;
+    const input = document.createElement('input');
+    input.setAttribute('data-name', b.name);
+    inputDiv.appendChild(label);
+    inputDiv.appendChild(input);
+  });
+}
 
-      boxes.forEach((box) => {
-        const input = document.querySelector(`input[data-name='${box.name}']`);
-        ctx.fillStyle = 'black';
-        ctx.font = '16px Arial';
-        ctx.textAlign = 'left';
-        ctx.fillText(input.value || '', box.left + 5, box.top + 20);
-      });
-    }
+function generateText() {
+  const canvas = document.getElementById('outputCanvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(image, 0, 0);
+  boxes.forEach((box) => {
+    const input = document.querySelector(`input[data-name='${box.name}']`);
+    ctx.fillStyle = 'black';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(input.value || '', box.left + 5, box.top + 20);
+  });
+}
 
-    function downloadImage() {
-      const link = document.createElement('a');
-      link.download = 'output.png';
-      link.href = document.getElementById('outputCanvas').toDataURL();
-      link.click();
-    }
-  </script></body>
+function downloadImage() {
+  const link = document.createElement('a');
+  link.download = 'output.png';
+  link.href = document.getElementById('outputCanvas').toDataURL();
+  link.click();
+}
+</script>
+</body>
 </html>
