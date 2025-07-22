@@ -2,377 +2,306 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Image Template Editor</title>
+  <title>Template Box Editor</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      background: #f4f4f4;
-    }
-    h1 {
-      text-align: center;
-      padding: 10px;
+      background-color: #f0f2f5;
+      color: #333;
     }
     .container {
-      max-width: 1000px;
-      margin: 20px auto;
       padding: 20px;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-      animation: fadeIn 1s ease-in;
+      max-width: 900px;
+      margin: auto;
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    #image-container {
+    .template-area {
       position: relative;
-      margin-top: 20px;
-      overflow: auto;
-    }
-    #image {
-      max-width: 100%;
-      border-radius: 8px;
+      display: inline-block;
+      border: 2px solid #ccc;
     }
     .highlight-box {
       position: absolute;
-      border: 2px dashed #ffcc00;
-      background: rgba(255, 255, 0, 0.2);
-      cursor: move;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      flex-direction: column;
+      border: 2px dashed yellow;
+      resize: both;
+      overflow: auto;
+      padding: 2px;
+      min-width: 50px;
+      min-height: 20px;
     }
-    .drag-handle {
+    .highlight-box .drag-handle {
       cursor: move;
-      padding: 2px 6px;
-      background: #ffc107;
-      font-size: 16px;
+      background: yellow;
+      color: black;
+      font-weight: bold;
+      font-size: 12px;
+      padding: 2px 4px;
+      position: absolute;
+      top: -14px;
+      left: 0;
+    }
+    .input-section, .output-section {
+      margin-top: 20px;
+      padding: 10px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    input, select {
+      margin-bottom: 10px;
+      padding: 6px;
+      width: 100%;
+      border: 1px solid #ccc;
       border-radius: 4px;
-      margin: 2px;
-      user-select: none;
+    }
+    label {
+      font-weight: bold;
     }
     .controls {
-      margin-top: 20px;
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      align-items: center;
-      justify-content: space-between;
+      margin-bottom: 10px;
     }
-    .controls label,
-    .controls input,
-    .controls select,
-    .controls button {
-      margin-right: 10px;
-      padding: 8px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 14px;
-    }
-    .controls button {
-      background-color: #28a745;
-      color: white;
+    button {
+      padding: 10px 16px;
       border: none;
-      transition: background 0.3s;
+      background: #007bff;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s ease;
     }
-    .controls button:hover {
-      background-color: #218838;
-    }
-    .input-fields {
-      margin-top: 20px;
-      display: grid;
-      gap: 10px;
-    }
-    .input-group {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-    .input-group label {
-      flex: 1;
-    }
-    .input-group input,
-    .input-group select {
-      flex: 2;
-    }
-    .style-controls {
-      display: flex;
-      gap: 10px;
-      margin: 10px 0;
-      flex-wrap: wrap;
+    button:hover {
+      background: #0056b3;
     }
     canvas {
-      display: none;
+      margin-top: 20px;
+      max-width: 100%;
+    }
+    .template-list {
+      margin-top: 10px;
+    }
+    .template-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 8px;
+      border-radius: 4px;
+      margin-bottom: 5px;
+    }
+    .template-item span {
+      font-weight: bold;
+    }
+    .template-item button {
+      background: #dc3545;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Image Template Editor</h1>
+    <h2>Template Box Editor</h2>
+    <input type="file" id="imageUpload" accept="image/*" />
     <div class="controls">
-      <input type="file" id="upload-image" accept="image/*" />
-      <button onclick="addBox()">➕ Add Box</button>
-      <button onclick="saveTemplate()">💾 Save Template</button>
-      <button onclick="loadTemplateList()">📂 Load Template</button>
-      <select id="template-select" onchange="loadTemplate(this.value)"></select>
-    </div><div class="style-controls">
-  <label>Font Size:
-    <input type="number" id="fontSize" value="16" min="10" max="36" /> px
-  </label>
-  <label>Font Style:
-    <select id="fontStyle">
-      <option value="normal">Normal</option>
-      <option value="bold">Bold</option>
-      <option value="italic">Italic</option>
-    </select>
-  </label>
-  <label>Alignment:
-    <select id="textAlign">
-      <option value="left">Left</option>
-      <option value="center">Center</option>
-      <option value="right">Right</option>
-    </select>
-  </label>
-  <label>Text Color:
-    <input type="color" id="textColor" value="#000000" />
-  </label>
-  <button onclick="generateText()">📝 Generate Text</button>
-  <button onclick="downloadImage()">⬇️ Download Image</button>
-</div>
+      <input type="text" id="boxName" placeholder="Enter box name before adding" />
+      <button onclick="addBox()">Add Box</button>
+      <input type="text" id="templateName" placeholder="Template name" />
+      <button onclick="saveTemplate()">Save Template</button>
+      <button onclick="loadTemplates()">Load Templates</button>
+    </div>
+    <div class="template-area" id="templateArea"></div><div class="template-list" id="templateList"></div>
 
-<div id="image-container">
-  <img id="image" />
-</div>
+<div class="input-section" id="inputFields"></div>
+<button onclick="generateText()">Generate Text</button>
+<canvas id="outputCanvas"></canvas>
+<button onclick="downloadImage()">Download</button>
 
-<div class="input-fields" id="input-fields"></div>
-
-  </div><canvas id="canvas"></canvas>
-
-  <script>
-    let image = document.getElementById('image');
-    let imageContainer = document.getElementById('image-container');
-    let uploadImage = document.getElementById('upload-image');
-    let inputFields = document.getElementById('input-fields');
-    let templateSelect = document.getElementById('template-select');
-
+  </div>  <script>
+    let image = new Image();
     let boxes = [];
-    let boxInputs = {};
+    let imageURL = '';
 
-    uploadImage.addEventListener('change', function (e) {
-      let reader = new FileReader();
+    document.getElementById('imageUpload').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
       reader.onload = function (event) {
-        image.src = event.target.result;
+        imageURL = event.target.result;
         image.onload = () => {
-          loadTemplateList();
-        }
+          renderImage();
+        };
+        image.src = imageURL;
       };
-      reader.readAsDataURL(e.target.files[0]);
+      reader.readAsDataURL(file);
     });
 
-    function addBox() {
-      let name = prompt('Enter box label (e.g., Name, Badge No):');
-      if (!name) return;
-      let div = document.createElement('div');
-      div.className = 'highlight-box';
-      div.style.width = '100px';
-      div.style.height = '30px';
-      div.style.top = '50px';
-      div.style.left = '50px';
-
-      let handle = document.createElement('div');
-      handle.className = 'drag-handle';
-      handle.innerText = '+';
-      div.appendChild(handle);
-
-      imageContainer.appendChild(div);
-
-      let offsetX, offsetY;
-      handle.addEventListener('touchstart', dragStart, false);
-      handle.addEventListener('touchmove', dragMove, false);
-      handle.addEventListener('mousedown', dragStart, false);
-      document.addEventListener('mousemove', dragMove, false);
-      document.addEventListener('mouseup', dragEnd, false);
-      document.addEventListener('touchend', dragEnd, false);
-
-      function dragStart(e) {
-        e.preventDefault();
-        let touch = e.touches ? e.touches[0] : e;
-        offsetX = touch.clientX - div.offsetLeft;
-        offsetY = touch.clientY - div.offsetTop;
-        div.dragging = true;
-      }
-
-      function dragMove(e) {
-        if (!div.dragging) return;
-        let touch = e.touches ? e.touches[0] : e;
-        div.style.left = `${touch.clientX - offsetX}px`;
-        div.style.top = `${touch.clientY - offsetY}px`;
-      }
-
-      function dragEnd() {
-        div.dragging = false;
-      }
-
-      boxes.push({ name, div });
-
-      let inputGroup = document.createElement('div');
-      inputGroup.className = 'input-group';
-
-      let label = document.createElement('label');
-      label.innerText = name;
-      let input = document.createElement('input');
-      input.type = 'text';
-      inputGroup.appendChild(label);
-      inputGroup.appendChild(input);
-
-      inputFields.appendChild(inputGroup);
-      boxInputs[name] = input;
+    function renderImage() {
+      const area = document.getElementById('templateArea');
+      area.innerHTML = '';
+      area.style.width = image.width + 'px';
+      area.style.height = image.height + 'px';
+      area.appendChild(image);
+      boxes.forEach((box) => createBox(box));
     }
 
-    function generateText() {
-      boxes.forEach(({ name, div }) => {
-        let existing = div.querySelector('span');
-        if (existing) existing.remove();
+    function createBox(box) {
+      const div = document.createElement('div');
+      div.className = 'highlight-box';
+      div.contentEditable = false;
+      div.style.left = box.left + 'px';
+      div.style.top = box.top + 'px';
+      div.style.width = box.width + 'px';
+      div.style.height = box.height + 'px';
+      div.setAttribute('data-name', box.name);
 
-        let span = document.createElement('span');
-        span.innerText = boxInputs[name].value;
-        span.style.position = 'absolute';
-        span.style.color = document.getElementById('textColor').value;
-        span.style.fontSize = document.getElementById('fontSize').value + 'px';
-        span.style.fontStyle = document.getElementById('fontStyle').value;
-        span.style.textAlign = document.getElementById('textAlign').value;
-        div.appendChild(span);
-      });
+      const drag = document.createElement('div');
+      drag.className = 'drag-handle';
+      drag.textContent = '+';
+      div.appendChild(drag);
+
+      drag.addEventListener('mousedown', dragStart);
+      drag.addEventListener('touchstart', dragStart);
+
+      div.addEventListener('mouseup', () => updateBoxPosition(div));
+      div.addEventListener('touchend', () => updateBoxPosition(div));
+
+      document.getElementById('templateArea').appendChild(div);
+    }
+
+    function dragStart(e) {
+      e.preventDefault();
+      const box = e.target.parentElement;
+      const shiftX = e.clientX - box.getBoundingClientRect().left;
+      const shiftY = e.clientY - box.getBoundingClientRect().top;
+
+      function moveAt(pageX, pageY) {
+        box.style.left = pageX - shiftX + 'px';
+        box.style.top = pageY - shiftY + 'px';
+      }
+
+      function onMouseMove(e) {
+        moveAt(e.pageX, e.pageY);
+      }
+
+      document.addEventListener('mousemove', onMouseMove);
+
+      box.onmouseup = function () {
+        document.removeEventListener('mousemove', onMouseMove);
+        box.onmouseup = null;
+      };
+    }
+
+    function updateBoxPosition(div) {
+      const name = div.getAttribute('data-name');
+      const rect = div.getBoundingClientRect();
+      const parentRect = document.getElementById('templateArea').getBoundingClientRect();
+      const left = rect.left - parentRect.left;
+      const top = rect.top - parentRect.top;
+      const width = rect.width;
+      const height = rect.height;
+
+      const box = boxes.find((b) => b.name === name);
+      if (box) {
+        box.left = left;
+        box.top = top;
+        box.width = width;
+        box.height = height;
+      }
+    }
+
+    function addBox() {
+      const name = document.getElementById('boxName').value.trim();
+      if (!name) return alert('Enter a name for the box.');
+      const box = { name, left: 20, top: 20, width: 100, height: 50 };
+      boxes.push(box);
+      createBox(box);
+      document.getElementById('boxName').value = '';
     }
 
     function saveTemplate() {
-      let name = prompt('Enter a name for this template:');
-      if (!name) return;
-      let data = {
-        image: image.src,
-        boxes: boxes.map(({ name, div }) => ({
-          name,
-          top: div.style.top,
-          left: div.style.left,
-          width: div.style.width,
-          height: div.style.height
-        }))
+      const name = document.getElementById('templateName').value.trim();
+      if (!name) return alert('Enter template name.');
+      const data = {
+        imageURL,
+        boxes,
       };
-      localStorage.setItem('template-' + name, JSON.stringify(data));
-      loadTemplateList();
+      localStorage.setItem('template_' + name, JSON.stringify(data));
+      alert('Template saved!');
+      loadTemplates();
     }
 
-    function loadTemplateList() {
-      templateSelect.innerHTML = '<option value="">Select Template</option>';
-      for (let key in localStorage) {
-        if (key.startsWith('template-')) {
-          let option = document.createElement('option');
-          option.value = key;
-          option.innerText = key.replace('template-', '');
-          templateSelect.appendChild(option);
+    function loadTemplates() {
+      const list = document.getElementById('templateList');
+      list.innerHTML = '';
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('template_')) {
+          const name = key.replace('template_', '');
+          const item = document.createElement('div');
+          item.className = 'template-item';
+          item.innerHTML = `<span>${name}</span>`;
+
+          const loadBtn = document.createElement('button');
+          loadBtn.textContent = 'Load';
+          loadBtn.onclick = () => {
+            const data = JSON.parse(localStorage.getItem(key));
+            imageURL = data.imageURL;
+            boxes = data.boxes;
+            image.src = imageURL;
+            image.onload = renderImage;
+            showInputs();
+          };
+
+          const delBtn = document.createElement('button');
+          delBtn.textContent = 'Delete';
+          delBtn.onclick = () => {
+            if (confirm('Are you sure to delete this template?')) {
+              localStorage.removeItem(key);
+              loadTemplates();
+            }
+          };
+
+          item.appendChild(loadBtn);
+          item.appendChild(delBtn);
+          list.appendChild(item);
         }
-      }
+      });
     }
 
-    function loadTemplate(key) {
-      let data = JSON.parse(localStorage.getItem(key));
-      if (!data) return;
-
-      image.src = data.image;
-      image.onload = () => {
-        boxes = [];
-        boxInputs = {};
-        inputFields.innerHTML = '';
-        imageContainer.querySelectorAll('.highlight-box').forEach(b => b.remove());
-
-        data.boxes.forEach(box => {
-          let div = document.createElement('div');
-          div.className = 'highlight-box';
-          div.style.top = box.top;
-          div.style.left = box.left;
-          div.style.width = box.width;
-          div.style.height = box.height;
-
-          let handle = document.createElement('div');
-          handle.className = 'drag-handle';
-          handle.innerText = '+';
-          div.appendChild(handle);
-
-          imageContainer.appendChild(div);
-          let offsetX, offsetY;
-          handle.addEventListener('touchstart', dragStart, false);
-          handle.addEventListener('touchmove', dragMove, false);
-          handle.addEventListener('mousedown', dragStart, false);
-          document.addEventListener('mousemove', dragMove, false);
-          document.addEventListener('mouseup', dragEnd, false);
-          document.addEventListener('touchend', dragEnd, false);
-
-          function dragStart(e) {
-            e.preventDefault();
-            let touch = e.touches ? e.touches[0] : e;
-            offsetX = touch.clientX - div.offsetLeft;
-            offsetY = touch.clientY - div.offsetTop;
-            div.dragging = true;
-          }
-
-          function dragMove(e) {
-            if (!div.dragging) return;
-            let touch = e.touches ? e.touches[0] : e;
-            div.style.left = `${touch.clientX - offsetX}px`;
-            div.style.top = `${touch.clientY - offsetY}px`;
-          }
-
-          function dragEnd() {
-            div.dragging = false;
-          }
-
-          boxes.push({ name: box.name, div });
-
-          let inputGroup = document.createElement('div');
-          inputGroup.className = 'input-group';
-
-          let label = document.createElement('label');
-          label.innerText = box.name;
-          let input = document.createElement('input');
-          input.type = 'text';
-
-          inputGroup.appendChild(label);
-          inputGroup.appendChild(input);
-          inputFields.appendChild(inputGroup);
-          boxInputs[box.name] = input;
-        });
-      }
+    function showInputs() {
+      const inputDiv = document.getElementById('inputFields');
+      inputDiv.innerHTML = '';
+      boxes.forEach((b) => {
+        const label = document.createElement('label');
+        label.textContent = b.name;
+        const input = document.createElement('input');
+        input.setAttribute('data-name', b.name);
+        inputDiv.appendChild(label);
+        inputDiv.appendChild(input);
+      });
     }
 
-    function downloadImage() {
-      const canvas = document.getElementById('canvas');
+    function generateText() {
+      const canvas = document.getElementById('outputCanvas');
       canvas.width = image.width;
       canvas.height = image.height;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(image, 0, 0);
 
-      boxes.forEach(({ name, div }) => {
-        const input = boxInputs[name].value;
-        let left = parseInt(div.style.left);
-        let top = parseInt(div.style.top);
-
-        ctx.font = `${document.getElementById('fontStyle').value} ${document.getElementById('fontSize').value}px Arial`;
-        ctx.fillStyle = document.getElementById('textColor').value;
-        ctx.textAlign = document.getElementById('textAlign').value;
-        ctx.fillText(input, left, top + 20);
+      boxes.forEach((box) => {
+        const input = document.querySelector(`input[data-name='${box.name}']`);
+        ctx.fillStyle = 'black';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(input.value || '', box.left + 5, box.top + 20);
       });
+    }
 
+    function downloadImage() {
       const link = document.createElement('a');
-      link.download = 'template-output.png';
-      link.href = canvas.toDataURL();
+      link.download = 'output.png';
+      link.href = document.getElementById('outputCanvas').toDataURL();
       link.click();
     }
   </script></body>
