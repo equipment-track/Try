@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Template Box Editor (No Rotation, Correct Text Placement)</title>
+<title>Template Box Editor (No Live Text Update)</title>
 <style>
   :root {
     --blue: #276ef1;
@@ -73,7 +73,7 @@
     outline: none;
   }
   #inputFields {
-    max-height: 200px;
+    max-height: 300px;
     overflow-y: auto;
     background: #e1e8ff;
     border: 1.5px solid #b3c7ec;
@@ -101,15 +101,20 @@
     min-height: 32px;
     font-family: var(--font-family);
   }
-  .font-style-controls {
-    margin: 3px 0 0;
-    display: flex;
-    gap: 8px;
-    font-size: 0.95em;
-    align-items: center;
-  }
-  .font-style-controls label {
+  #generateTextBtn {
+    margin-top: 8px;
+    padding: 11px 22px;
+    font-weight: 700;
+    border-radius: 12px;
+    background: var(--blue);
+    color: white;
+    border: none;
     cursor: pointer;
+    width: max-content;
+    align-self: center;
+  }
+  #generateTextBtn:hover {
+    background: #154ecb;
   }
   #previewContainer {
     position: relative;
@@ -239,7 +244,7 @@
 </head>
 <body>
   <div class="container" role="main" aria-label="Template Box Editor">
-    <h2>Template Box Editor</h2>
+    <h2>Template Box Editor (No Live Text Update)</h2>
     <div class="controls" role="region" aria-label="Control Panel">
       <input type="file" accept="image/*" id="imageUpload" aria-label="Upload Image" />
       <input type="text" placeholder="New Box Name" id="boxName" aria-label="Box Name Input" autocomplete="off" />
@@ -249,6 +254,7 @@
       <button id="loadTemplatesBtn" aria-label="Load Templates Button" title="Load Templates">Load Templates</button>
     </div>
     <div id="inputFields" role="form" aria-label="Box Text Inputs"></div>
+    <button id="generateTextBtn" aria-label="Generate Text Button" title="Generate Text">Generate Text</button>
     <div id="previewContainer" aria-label="Image Preview Panel" tabindex="0">
       <canvas id="templateCanvas"></canvas>
     </div>
@@ -267,6 +273,7 @@
     const saveTemplateBtn = document.getElementById('saveTemplateBtn');
     const loadTemplatesBtn = document.getElementById('loadTemplatesBtn');
     const inputFields = document.getElementById('inputFields');
+    const generateTextBtn = document.getElementById('generateTextBtn');
     const templateList = document.getElementById('templateList');
     const downloadBtn = document.getElementById('downloadBtn');
     const canvas = document.getElementById('templateCanvas');
@@ -294,7 +301,6 @@
       boxes.forEach(box => {
         ctx.save();
 
-        // Translate origin to box top-left
         ctx.translate(box.left, box.top);
 
         ctx.beginPath();
@@ -302,18 +308,15 @@
         ctx.clip();
 
         ctx.fillStyle = '#222';
-        let fStyle = '';
-        if (box.styles?.italic) fStyle += 'italic ';
-        if (box.styles?.bold) fStyle += 'bold ';
-        const fontSize = box.styles?.fontSize || 18;
-        ctx.font = `${fStyle}${fontSize}px "Segoe UI", Arial, sans-serif`;
+
+        ctx.font = `${box.styles?.italic ? 'italic ' : ''}${box.styles?.bold ? 'bold ' : ''}${box.styles?.fontSize || 18}px "Segoe UI", Arial, sans-serif`;
 
         const align = box.styles?.align || 'left';
         ctx.textAlign = align;
         ctx.textBaseline = 'top';
 
         const padding = 8;
-        const lineHeight = fontSize * 1.25;
+        const lineHeight = (box.styles?.fontSize || 18) * 1.25;
         const lines = (box.text || '').split('\n');
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
@@ -440,88 +443,27 @@
         textarea.value = box.text || '';
         textarea.placeholder = `Text for "${box.name}"`;
 
-        textarea.style.fontWeight = box.styles?.bold ? "700" : "400";
-        textarea.style.fontStyle = box.styles?.italic ? "italic" : "normal";
-        textarea.style.textAlign = box.styles?.align || "left";
-        textarea.style.fontSize = (box.styles?.fontSize || 18) + "px";
-
-        textarea.addEventListener('input', () => {
-          box.text = textarea.value;
-          drawCanvas();
-        });
+        // **Removed live input event** to disable live update
+        // textarea.addEventListener('input', () => {
+        //   box.text = textarea.value;
+        //   drawCanvas();
+        // });
 
         wrapper.appendChild(label);
         wrapper.appendChild(textarea);
-
-        const ctrl = document.createElement('div');
-        ctrl.className = 'font-style-controls';
-
-        const boldLabel = document.createElement('label');
-        const boldCheckbox = document.createElement('input');
-        boldCheckbox.type = 'checkbox';
-        boldCheckbox.checked = box.styles?.bold;
-        boldCheckbox.addEventListener('change', () => {
-          box.styles.bold = boldCheckbox.checked;
-          textarea.style.fontWeight = boldCheckbox.checked ? "700" : "400";
-          drawCanvas();
-        });
-        boldLabel.appendChild(boldCheckbox);
-        boldLabel.appendChild(document.createTextNode('Bold'));
-        ctrl.appendChild(boldLabel);
-
-        const italicLabel = document.createElement('label');
-        const italicCheckbox = document.createElement('input');
-        italicCheckbox.type = 'checkbox';
-        italicCheckbox.checked = box.styles?.italic;
-        italicCheckbox.addEventListener('change', () => {
-          box.styles.italic = italicCheckbox.checked;
-          textarea.style.fontStyle = italicCheckbox.checked ? "italic" : "normal";
-          drawCanvas();
-        });
-        italicLabel.appendChild(italicCheckbox);
-        italicLabel.appendChild(document.createTextNode('Italic'));
-        ctrl.appendChild(italicLabel);
-
-        const sizeLabel = document.createElement('label');
-        sizeLabel.textContent = 'Size: ';
-        const sizeSelect = document.createElement('select');
-        [12, 14, 16, 18, 20, 24].forEach(sz => {
-          const opt = document.createElement('option');
-          opt.value = sz;
-          opt.textContent = sz + 'px';
-          sizeSelect.appendChild(opt);
-        });
-        sizeSelect.value = box.styles?.fontSize || 18;
-        sizeSelect.addEventListener('change', () => {
-          box.styles.fontSize = +sizeSelect.value;
-          textarea.style.fontSize = sizeSelect.value + 'px';
-          drawCanvas();
-        });
-        sizeLabel.appendChild(sizeSelect);
-        ctrl.appendChild(sizeLabel);
-
-        const alignLabel = document.createElement('label');
-        alignLabel.textContent = 'Align: ';
-        const alignSelect = document.createElement('select');
-        ['left', 'center', 'right'].forEach(a => {
-          const opt = document.createElement('option');
-          opt.value = a;
-          opt.textContent = a.charAt(0).toUpperCase() + a.slice(1);
-          alignSelect.appendChild(opt);
-        });
-        alignSelect.value = box.styles?.align || "left";
-        alignSelect.addEventListener('change', () => {
-          box.styles.align = alignSelect.value;
-          textarea.style.textAlign = alignSelect.value;
-          drawCanvas();
-        });
-        alignLabel.appendChild(alignSelect);
-        ctrl.appendChild(alignLabel);
-
-        wrapper.appendChild(ctrl);
         inputFields.appendChild(wrapper);
       });
     }
+
+    generateTextBtn.addEventListener('click', () => {
+      // On click, update all box texts from textareas, then redraw canvas
+      inputFields.querySelectorAll('textarea').forEach(ta => {
+        const box = boxes.find(b => b.name === ta.dataset.name);
+        if (box) box.text = ta.value;
+      });
+      drawCanvas();
+      showToast("Text updated");
+    });
 
     function saveTemplate() {
       const tplName = templateNameInput.value.trim();
@@ -537,9 +479,10 @@
         showToast("Template name must be unique");
         return;
       }
-      boxes.forEach(box => {
-        const textarea = inputFields.querySelector(`textarea[data-name="${box.name}"]`);
-        if (textarea) box.text = textarea.value;
+      // Save latest textarea values to box texts
+      inputFields.querySelectorAll('textarea').forEach(ta => {
+        const box = boxes.find(b => b.name === ta.dataset.name);
+        if (box) box.text = ta.value;
       });
       localStorage.setItem('template_' + tplName, JSON.stringify({
         imageSrc: image.src,
