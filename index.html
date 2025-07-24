@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Template Box Editor (No Rotation)</title>
+<title>Template Box Editor (No Rotation, Correct Text Placement)</title>
 <style>
   :root {
     --blue: #276ef1;
@@ -259,430 +259,425 @@
   </div>
 
   <script>
-    (() => {
-      const imageUpload = document.getElementById('imageUpload');
-      const boxNameInput = document.getElementById('boxName');
-      const addBoxBtn = document.getElementById('addBoxBtn');
-      const templateNameInput = document.getElementById('templateName');
-      const saveTemplateBtn = document.getElementById('saveTemplateBtn');
-      const loadTemplatesBtn = document.getElementById('loadTemplatesBtn');
-      const inputFields = document.getElementById('inputFields');
-      const templateList = document.getElementById('templateList');
-      const downloadBtn = document.getElementById('downloadBtn');
-      const canvas = document.getElementById('templateCanvas');
-      const ctx = canvas.getContext('2d');
-      let image = new Image();
-      let boxes = [];
-      let selectedBox = null;
+  (() => {
+    const imageUpload = document.getElementById('imageUpload');
+    const boxNameInput = document.getElementById('boxName');
+    const addBoxBtn = document.getElementById('addBoxBtn');
+    const templateNameInput = document.getElementById('templateName');
+    const saveTemplateBtn = document.getElementById('saveTemplateBtn');
+    const loadTemplatesBtn = document.getElementById('loadTemplatesBtn');
+    const inputFields = document.getElementById('inputFields');
+    const templateList = document.getElementById('templateList');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const canvas = document.getElementById('templateCanvas');
+    const ctx = canvas.getContext('2d');
+    let image = new Image();
+    let boxes = [];
+    let selectedBox = null;
 
-      function showToast(msg) {
-        if (document.getElementById('toastMessage')) return;
-        const t = document.createElement('div');
-        t.id = 'toastMessage';
-        t.textContent = msg;
-        document.body.appendChild(t);
-        setTimeout(() => { t.style.opacity = '1'; }, 10);
-        setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 1600);
-      }
+    function showToast(msg) {
+      if (document.getElementById('toastMessage')) return;
+      const t = document.createElement('div');
+      t.id = 'toastMessage';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity = '1'; }, 10);
+      setTimeout(() => {
+        t.style.opacity = '0';
+        setTimeout(() => t.remove(), 300);
+      }, 1600);
+    }
 
-      function drawCanvas() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (!image.src) return;
-        ctx.drawImage(image, 0, 0);
+    function drawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!image.src) return;
+      ctx.drawImage(image, 0, 0);
 
-        boxes.forEach(box => {
-          ctx.save();
+      boxes.forEach(box => {
+        ctx.save();
 
-          // No rotation: translate to box top-left corner only
-          ctx.translate(box.left, box.top);
+        // Move context origin to box top-left corner
+        ctx.translate(box.left, box.top);
 
-          // Clip inside box rectangle
-          ctx.beginPath();
-          ctx.rect(0, 0, box.width, box.height);
-          ctx.clip();
+        ctx.beginPath();
+        ctx.rect(0, 0, box.width, box.height);
+        ctx.clip();
 
-          ctx.fillStyle = '#222';
-          let fStyle = '';
-          if (box.styles?.italic) fStyle += 'italic ';
-          if (box.styles?.bold) fStyle += 'bold ';
-          const fontSize = box.styles?.fontSize || 18;
-          ctx.font = `${fStyle}${fontSize}px "Segoe UI", Arial, sans-serif`;
+        ctx.fillStyle = '#222';
+        let fStyle = '';
+        if (box.styles?.italic) fStyle += 'italic ';
+        if (box.styles?.bold) fStyle += 'bold ';
+        const fontSize = box.styles?.fontSize || 18;
+        ctx.font = `${fStyle}${fontSize}px "Segoe UI", Arial, sans-serif`;
 
-          const align = box.styles?.align || 'left';
-          ctx.textAlign = align;
-          ctx.textBaseline = 'top';
+        const align = box.styles?.align || 'left';
+        ctx.textAlign = align;
+        ctx.textBaseline = 'top';
 
-          const padding = 8;
-          const lineHeight = fontSize * 1.25;
-          const lines = (box.text || '').split('\n');
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const y = padding + i * lineHeight;
-            if (y + lineHeight > box.height - padding) break;
+        const padding = 8;
+        const lineHeight = fontSize * 1.25;
+        const lines = (box.text || '').split('\n');
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const y = padding + i * lineHeight;
+          if (y + lineHeight > box.height - padding) break;
 
-            let x;
-            if (align === 'left') x = padding;
-            else if (align === 'center') x = box.width / 2;
-            else if (align === 'right') x = box.width - padding;
+          let x;
+          if (align === 'left') x = padding;
+          else if (align === 'center') x = box.width / 2;
+          else if (align === 'right') x = box.width - padding;
 
-            ctx.fillText(line, x, y, box.width - 2 * padding);
-          }
-
-          ctx.restore();
-        });
-      }
-
-      function createBoxOverlays() {
-        document.querySelectorAll('.box-overlay').forEach(el => el.remove());
-        boxes.forEach(box => {
-          const el = document.createElement('div');
-          el.className = 'box-overlay' + (selectedBox && box.name === selectedBox.name ? ' selected' : '');
-          el.style.left = box.left + "px";
-          el.style.top = box.top + "px";
-          el.style.width = box.width + "px";
-          el.style.height = box.height + "px";
-          // No rotation, so no transform on overlay
-          el.dataset.name = box.name;
-          el.tabIndex = 0;
-          el.innerHTML = `<div style="font-size:13px;font-weight:600;color:#333;text-align:center;">${box.name}</div>`;
-          addDragListeners(el, box);
-          addResizeHandles(el, box);
-          el.addEventListener('click', () => {
-            selectedBox = box;
-            updateSelectionVisual();
-          });
-          document.getElementById('previewContainer').appendChild(el);
-        });
-      }
-
-      function updateSelectionVisual() {
-        document.querySelectorAll('.box-overlay').forEach(el => {
-          el.classList.toggle('selected', selectedBox && el.dataset.name === selectedBox.name);
-        });
-      }
-
-      function addDragListeners(el, box) {
-        let dragging = false, startX, startY, startL, startT;
-        el.addEventListener('pointerdown', e => {
-          if (e.target.classList.contains('resize-grip')) return;
-          dragging = true;
-          startX = e.clientX;
-          startY = e.clientY;
-          startL = box.left;
-          startT = box.top;
-          el.setPointerCapture(e.pointerId);
-          el.style.zIndex = 30;
-        });
-        el.addEventListener('pointermove', e => {
-          if (!dragging) return;
-          let dx = e.clientX - startX;
-          let dy = e.clientY - startY;
-          box.left = Math.min(Math.max(0, startL + dx), canvas.width - box.width);
-          box.top = Math.min(Math.max(0, startT + dy), canvas.height - box.height);
-          el.style.left = box.left + "px";
-          el.style.top = box.top + "px";
-          drawCanvas();
-        });
-        el.addEventListener('pointerup', () => {
-          dragging = false;
-          el.style.zIndex = 8;
-          drawCanvas();
-        });
-      }
-
-      function addResizeHandles(el, box) {
-        const grip = document.createElement('div');
-        grip.className = 'resize-grip';
-        let resizing = false, startX, startY, origW, origH;
-        grip.addEventListener('pointerdown', e => {
-          e.stopPropagation();
-          resizing = true;
-          startX = e.clientX;
-          startY = e.clientY;
-          origW = box.width;
-          origH = box.height;
-          document.body.style.userSelect = 'none';
-          grip.setPointerCapture(e.pointerId);
-        });
-        grip.addEventListener('pointermove', e => {
-          if (!resizing) return;
-          let dw = e.clientX - startX;
-          let dh = e.clientY - startY;
-          box.width = Math.min(Math.max(40, origW + dw), canvas.width - box.left);
-          box.height = Math.min(Math.max(20, origH + dh), canvas.height - box.top);
-          el.style.width = box.width + "px";
-          el.style.height = box.height + "px";
-          drawCanvas();
-        });
-        grip.addEventListener('pointerup', () => {
-          resizing = false;
-          document.body.style.userSelect = '';
-        });
-        el.appendChild(grip);
-      }
-
-      function updateInputFields() {
-        inputFields.innerHTML = '';
-        if (!boxes.length) {
-          inputFields.textContent = 'Add boxes to enter text here.';
-          return;
+          ctx.fillText(line, x, y, box.width - 2 * padding);
         }
-        boxes.forEach(box => {
-          const wrapper = document.createElement('div');
-          wrapper.className = 'input-wrapper';
-
-          const label = document.createElement('label');
-          label.textContent = box.name;
-          label.htmlFor = `input-${box.name}`;
-
-          const textarea = document.createElement('textarea');
-          textarea.id = `input-${box.name}`;
-          textarea.dataset.name = box.name;
-          textarea.value = box.text || '';
-          textarea.placeholder = `Text for "${box.name}"`;
-
-          // Style controls including font size
-          textarea.style.fontWeight = box.styles?.bold ? "700" : "400";
-          textarea.style.fontStyle = box.styles?.italic ? "italic" : "normal";
-          textarea.style.textAlign = box.styles?.align || "left";
-          textarea.style.fontSize = (box.styles?.fontSize || 18) + "px";
-
-          textarea.addEventListener('input', () => {
-            box.text = textarea.value;
-            drawCanvas();
-          });
-
-          wrapper.appendChild(label);
-          wrapper.appendChild(textarea);
-
-          const ctrl = document.createElement('div');
-          ctrl.className = 'font-style-controls';
-
-          // Bold
-          const boldLabel = document.createElement('label');
-          const boldCheckbox = document.createElement('input');
-          boldCheckbox.type = 'checkbox';
-          boldCheckbox.checked = box.styles?.bold;
-          boldCheckbox.addEventListener('change', () => {
-            box.styles.bold = boldCheckbox.checked;
-            textarea.style.fontWeight = boldCheckbox.checked ? "700" : "400";
-            drawCanvas();
-          });
-          boldLabel.appendChild(boldCheckbox);
-          boldLabel.appendChild(document.createTextNode('Bold'));
-          ctrl.appendChild(boldLabel);
-
-          // Italic
-          const italicLabel = document.createElement('label');
-          const italicCheckbox = document.createElement('input');
-          italicCheckbox.type = 'checkbox';
-          italicCheckbox.checked = box.styles?.italic;
-          italicCheckbox.addEventListener('change', () => {
-            box.styles.italic = italicCheckbox.checked;
-            textarea.style.fontStyle = italicCheckbox.checked ? "italic" : "normal";
-            drawCanvas();
-          });
-          italicLabel.appendChild(italicCheckbox);
-          italicLabel.appendChild(document.createTextNode('Italic'));
-          ctrl.appendChild(italicLabel);
-
-          // Font Size
-          const sizeLabel = document.createElement('label');
-          sizeLabel.textContent = 'Size: ';
-          const sizeSelect = document.createElement('select');
-          [12, 14, 16, 18, 20, 24].forEach(sz => {
-            const opt = document.createElement('option');
-            opt.value = sz;
-            opt.textContent = sz + 'px';
-            sizeSelect.appendChild(opt);
-          });
-          sizeSelect.value = box.styles?.fontSize || 18;
-          sizeSelect.addEventListener('change', () => {
-            box.styles.fontSize = +sizeSelect.value;
-            textarea.style.fontSize = sizeSelect.value + 'px';
-            drawCanvas();
-          });
-          sizeLabel.appendChild(sizeSelect);
-          ctrl.appendChild(sizeLabel);
-
-          // Align
-          const alignLabel = document.createElement('label');
-          alignLabel.textContent = 'Align: ';
-          const alignSelect = document.createElement('select');
-          ['left', 'center', 'right'].forEach(a => {
-            const option = document.createElement('option');
-            option.value = a;
-            option.textContent = a.charAt(0).toUpperCase() + a.slice(1);
-            alignSelect.appendChild(option);
-          });
-          alignSelect.value = box.styles?.align || "left";
-          alignSelect.addEventListener('change', () => {
-            box.styles.align = alignSelect.value;
-            textarea.style.textAlign = alignSelect.value;
-            drawCanvas();
-          });
-          alignLabel.appendChild(alignSelect);
-          ctrl.appendChild(alignLabel);
-
-          wrapper.appendChild(ctrl);
-          inputFields.appendChild(wrapper);
-        });
-      }
-
-      function saveTemplate() {
-        const tplName = templateNameInput.value.trim();
-        if (!tplName) {
-          showToast("Enter template name");
-          return;
-        }
-        if (!image.src) {
-          showToast("Upload image first");
-          return;
-        }
-        if (Object.keys(localStorage).some(k => k.toLowerCase() === ('template_' + tplName).toLowerCase())) {
-          showToast("Template name must be unique");
-          return;
-        }
-        boxes.forEach(box => {
-          const txtarea = inputFields.querySelector(`textarea[data-name="${box.name}"]`);
-          if (txtarea) box.text = txtarea.value;
-        });
-        localStorage.setItem('template_' + tplName, JSON.stringify({
-          imageSrc: image.src,
-          boxes: boxes
-        }));
-        showToast(`Template "${tplName}" saved`);
-        loadTemplates();
-      }
-
-      function loadTemplates() {
-        if (templateList.style.display === "block") {
-          templateList.style.display = "none";
-          return;
-        }
-        templateList.style.display = "block";
-        templateList.innerHTML = '';
-        const keys = Object.keys(localStorage).filter(k => k.startsWith('template_'));
-        if (!keys.length) {
-          templateList.textContent = "No saved templates.";
-          return;
-        }
-        keys.forEach(key => {
-          const tplName = key.slice(9);
-          const div = document.createElement('div');
-          div.className = 'template-item';
-          const span = document.createElement('span');
-          span.textContent = tplName;
-          const loadBtn = document.createElement('button');
-          loadBtn.className = 'loadBtn';
-          loadBtn.textContent = 'Load';
-          loadBtn.onclick = () => {
-            const tpl = JSON.parse(localStorage.getItem(key));
-            if (!tpl) {
-              showToast("Failed to load");
-              return;
-            }
-            image.src = tpl.imageSrc;
-            image.onload = () => {
-              canvas.width = image.width;
-              canvas.height = image.height;
-              boxes = (tpl.boxes || []).map(b => Object.assign({}, b));
-              updateInputFields();
-              createBoxOverlays();
-              drawCanvas();
-              templateNameInput.value = tplName;
-            };
-            templateList.style.display = "none";
-            showToast(`Template "${tplName}" loaded`);
-          };
-          const delBtn = document.createElement('button');
-          delBtn.className = 'delBtn';
-          delBtn.textContent = 'Delete';
-          delBtn.onclick = () => {
-            if (confirm(`Delete template "${tplName}"?`)) {
-              localStorage.removeItem(key);
-              loadTemplates();
-              showToast(`Template "${tplName}" deleted`);
-            }
-          };
-          div.appendChild(span);
-          div.appendChild(loadBtn);
-          div.appendChild(delBtn);
-          templateList.appendChild(div);
-        });
-      }
-
-      function addBox() {
-        const name = boxNameInput.value.trim();
-        if (!name) {
-          showToast('Enter a box name');
-          return;
-        }
-        if (boxes.some(b => b.name.toLowerCase() === name.toLowerCase())) {
-          showToast('Box name already exists');
-          return;
-        }
-        if (!image.src) {
-          showToast('Upload image first');
-          return;
-        }
-        boxes.push({
-          name,
-          left: 70,
-          top: 70,
-          width: 150,
-          height: 50,
-          rotation: 0, // no rotation applied
-          text: '',
-          styles: { bold: false, italic: false, align: 'left', fontSize: 18 }
-        });
-        boxNameInput.value = '';
-        updateInputFields();
-        createBoxOverlays();
-        drawCanvas();
-        showToast(`Box "${name}" added`);
-      }
-
-      downloadBtn.addEventListener('click', () => {
-        if (!image.src) {
-          showToast("No canvas to export");
-          return;
-        }
-        canvas.toBlob(blob => {
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = 'template-output.jpg';
-          a.click();
-          URL.revokeObjectURL(a.href);
-        }, 'image/jpeg', 0.97);
+        ctx.restore();
       });
+    }
 
-      imageUpload.addEventListener('change', () => {
-        const file = imageUpload.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = e => {
-          image.src = e.target.result;
+    function createBoxOverlays() {
+      document.querySelectorAll('.box-overlay').forEach(el => el.remove());
+      boxes.forEach(box => {
+        const el = document.createElement('div');
+        el.className = 'box-overlay' + (selectedBox && box.name === selectedBox.name ? ' selected' : '');
+        el.style.left = box.left + "px";
+        el.style.top = box.top + "px";
+        el.style.width = box.width + "px";
+        el.style.height = box.height + "px";
+        el.dataset.name = box.name;
+        el.tabIndex = 0;
+        el.innerHTML = `<div style="font-size:13px;font-weight:600;color:#333;text-align:center;">${box.name}</div>`;
+        addDragListeners(el, box);
+        addResizeHandles(el, box);
+        el.addEventListener('click', () => {
+          selectedBox = box;
+          updateSelectionVisual();
+        });
+        document.getElementById('previewContainer').appendChild(el);
+      });
+    }
+
+    function updateSelectionVisual() {
+      document.querySelectorAll('.box-overlay').forEach(el => {
+        el.classList.toggle('selected', selectedBox && el.dataset.name === selectedBox.name);
+      });
+    }
+
+    function addDragListeners(el, box) {
+      let dragging = false, startX, startY, startL, startT;
+      el.addEventListener('pointerdown', e => {
+        if (e.target.classList.contains('resize-grip')) return;
+        dragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startL = box.left;
+        startT = box.top;
+        el.setPointerCapture(e.pointerId);
+        el.style.zIndex = 30;
+      });
+      el.addEventListener('pointermove', e => {
+        if (!dragging) return;
+        let dx = e.clientX - startX;
+        let dy = e.clientY - startY;
+        box.left = Math.min(Math.max(0, startL + dx), canvas.width - box.width);
+        box.top = Math.min(Math.max(0, startT + dy), canvas.height - box.height);
+        el.style.left = box.left + "px";
+        el.style.top = box.top + "px";
+        drawCanvas();
+      });
+      el.addEventListener('pointerup', () => {
+        dragging = false;
+        el.style.zIndex = 8;
+        drawCanvas();
+      });
+    }
+
+    function addResizeHandles(el, box) {
+      const grip = document.createElement('div');
+      grip.className = 'resize-grip';
+      let resizing = false, startX, startY, origW, origH;
+      grip.addEventListener('pointerdown', e => {
+        e.stopPropagation();
+        resizing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        origW = box.width;
+        origH = box.height;
+        document.body.style.userSelect = 'none';
+        grip.setPointerCapture(e.pointerId);
+      });
+      grip.addEventListener('pointermove', e => {
+        if (!resizing) return;
+        let dw = e.clientX - startX;
+        let dh = e.clientY - startY;
+        box.width = Math.min(Math.max(40, origW + dw), canvas.width - box.left);
+        box.height = Math.min(Math.max(20, origH + dh), canvas.height - box.top);
+        el.style.width = box.width + "px";
+        el.style.height = box.height + "px";
+        drawCanvas();
+      });
+      grip.addEventListener('pointerup', () => {
+        resizing = false;
+        document.body.style.userSelect = '';
+      });
+      el.appendChild(grip);
+    }
+
+    function updateInputFields() {
+      inputFields.innerHTML = '';
+      if (!boxes.length) {
+        inputFields.textContent = 'Add boxes to enter text here.';
+        return;
+      }
+      boxes.forEach(box => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'input-wrapper';
+
+        const label = document.createElement('label');
+        label.textContent = box.name;
+        label.htmlFor = `input-${box.name}`;
+
+        const textarea = document.createElement('textarea');
+        textarea.id = `input-${box.name}`;
+        textarea.dataset.name = box.name;
+        textarea.value = box.text || '';
+        textarea.placeholder = `Text for "${box.name}"`;
+
+        // Style controls including font size
+        textarea.style.fontWeight = box.styles?.bold ? "700" : "400";
+        textarea.style.fontStyle = box.styles?.italic ? "italic" : "normal";
+        textarea.style.textAlign = box.styles?.align || "left";
+        textarea.style.fontSize = (box.styles?.fontSize || 18) + "px";
+
+        textarea.addEventListener('input', () => {
+          box.text = textarea.value;
+          drawCanvas();
+        });
+
+        wrapper.appendChild(label);
+        wrapper.appendChild(textarea);
+
+        const ctrl = document.createElement('div');
+        ctrl.className = 'font-style-controls';
+
+        const boldLabel = document.createElement('label');
+        const boldCheckbox = document.createElement('input');
+        boldCheckbox.type = 'checkbox';
+        boldCheckbox.checked = box.styles?.bold;
+        boldCheckbox.addEventListener('change', () => {
+          box.styles.bold = boldCheckbox.checked;
+          textarea.style.fontWeight = boldCheckbox.checked ? "700" : "400";
+          drawCanvas();
+        });
+        boldLabel.appendChild(boldCheckbox);
+        boldLabel.appendChild(document.createTextNode('Bold'));
+        ctrl.appendChild(boldLabel);
+
+        const italicLabel = document.createElement('label');
+        const italicCheckbox = document.createElement('input');
+        italicCheckbox.type = 'checkbox';
+        italicCheckbox.checked = box.styles?.italic;
+        italicCheckbox.addEventListener('change', () => {
+          box.styles.italic = italicCheckbox.checked;
+          textarea.style.fontStyle = italicCheckbox.checked ? "italic" : "normal";
+          drawCanvas();
+        });
+        italicLabel.appendChild(italicCheckbox);
+        italicLabel.appendChild(document.createTextNode('Italic'));
+        ctrl.appendChild(italicLabel);
+
+        const sizeLabel = document.createElement('label');
+        sizeLabel.textContent = 'Size: ';
+        const sizeSelect = document.createElement('select');
+        [12,14,16,18,20,24].forEach(sz=>{
+          const opt = document.createElement('option');
+          opt.value = sz;
+          opt.textContent = sz + 'px';
+          sizeSelect.appendChild(opt);
+        });
+        sizeSelect.value = box.styles?.fontSize || 18;
+        sizeSelect.addEventListener('change', () => {
+          box.styles.fontSize = +sizeSelect.value;
+          textarea.style.fontSize = sizeSelect.value + 'px';
+          drawCanvas();
+        });
+        sizeLabel.appendChild(sizeSelect);
+        ctrl.appendChild(sizeLabel);
+
+        const alignLabel = document.createElement('label');
+        alignLabel.textContent = 'Align: ';
+        const alignSelect = document.createElement('select');
+        ['left','center','right'].forEach(a=>{
+          const opt = document.createElement('option');
+          opt.value = a;
+          opt.textContent = a.charAt(0).toUpperCase() + a.slice(1);
+          alignSelect.appendChild(opt);
+        });
+        alignSelect.value = box.styles?.align || "left";
+        alignSelect.addEventListener('change', () => {
+          box.styles.align = alignSelect.value;
+          textarea.style.textAlign = alignSelect.value;
+          drawCanvas();
+        });
+        alignLabel.appendChild(alignSelect);
+        ctrl.appendChild(alignLabel);
+
+        wrapper.appendChild(ctrl);
+        inputFields.appendChild(wrapper);
+      });
+    }
+
+    function saveTemplate() {
+      const tplName = templateNameInput.value.trim();
+      if (!tplName) {
+        showToast("Enter template name");
+        return;
+      }
+      if (!image.src) {
+        showToast("Upload image first");
+        return;
+      }
+      if (Object.keys(localStorage).some(k => k.toLowerCase() === ('template_' + tplName).toLowerCase())) {
+        showToast("Template name must be unique");
+        return;
+      }
+      boxes.forEach(box => {
+        const textarea = inputFields.querySelector(`textarea[data-name="${box.name}"]`);
+        if (textarea) box.text = textarea.value;
+      });
+      localStorage.setItem('template_' + tplName, JSON.stringify({
+        imageSrc: image.src,
+        boxes: boxes
+      }));
+      showToast(`Template "${tplName}" saved`);
+      loadTemplates();
+    }
+
+    function loadTemplates() {
+      if (templateList.style.display === "block") {
+        templateList.style.display = "none";
+        return;
+      }
+      templateList.style.display = "block";
+      templateList.innerHTML = '';
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('template_'));
+      if (!keys.length) {
+        templateList.textContent = "No saved templates.";
+        return;
+      }
+      keys.forEach(key => {
+        const tplName = key.slice(9);
+        const div = document.createElement('div');
+        div.className = 'template-item';
+        const span = document.createElement('span');
+        span.textContent = tplName;
+        const loadBtn = document.createElement('button');
+        loadBtn.className = 'loadBtn';
+        loadBtn.textContent = 'Load';
+        loadBtn.onclick = () => {
+          const tpl = JSON.parse(localStorage.getItem(key));
+          if (!tpl) {
+            showToast("Failed to load");
+            return;
+          }
+          image.src = tpl.imageSrc;
           image.onload = () => {
             canvas.width = image.width;
             canvas.height = image.height;
-            boxes = [];
-            inputFields.innerHTML = '';
+            boxes = (tpl.boxes || []).map(b => Object.assign({}, b));
+            updateInputFields();
             createBoxOverlays();
             drawCanvas();
+            templateNameInput.value = tplName;
           };
+          templateList.style.display = "none";
+          showToast(`Template "${tplName}" loaded`);
         };
-        reader.readAsDataURL(file);
+        const delBtn = document.createElement('button');
+        delBtn.className = 'delBtn';
+        delBtn.textContent = 'Delete';
+        delBtn.onclick = () => {
+          if (confirm(`Delete template "${tplName}"?`)) {
+            localStorage.removeItem(key);
+            loadTemplates();
+            showToast(`Template "${tplName}" deleted`);
+          }
+        };
+        div.appendChild(span);
+        div.appendChild(loadBtn);
+        div.appendChild(delBtn);
+        templateList.appendChild(div);
       });
+    }
 
-      addBoxBtn.addEventListener('click', addBox);
-      saveTemplateBtn.addEventListener('click', saveTemplate);
-      loadTemplatesBtn.addEventListener('click', loadTemplates);
-
-      window.addEventListener('load', () => {
-        loadTemplates();
+    function addBox() {
+      const name = boxNameInput.value.trim();
+      if (!name) {
+        showToast('Enter a box name');
+        return;
+      }
+      if (boxes.some(b => b.name.toLowerCase() === name.toLowerCase())) {
+        showToast('Box name already exists');
+        return;
+      }
+      if (!image.src) {
+        showToast('Upload image first');
+        return;
+      }
+      boxes.push({
+        name,
+        left: 70,
+        top: 70,
+        width: 150,
+        height: 50,
+        text: '',
+        styles: { bold: false, italic: false, align: 'left', fontSize: 18 }
       });
-    })();
+      boxNameInput.value = '';
+      updateInputFields();
+      createBoxOverlays();
+      drawCanvas();
+      showToast(`Box "${name}" added`);
+    }
+
+    downloadBtn.addEventListener('click', () => {
+      if (!image.src) {
+        showToast("No canvas to export");
+        return;
+      }
+      canvas.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'template-output.jpg';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, 'image/jpeg', 0.97);
+    });
+
+    imageUpload.addEventListener('change', () => {
+      const file = imageUpload.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        image.src = e.target.result;
+        image.onload = () => {
+          canvas.width = image.width;
+          canvas.height = image.height;
+          boxes = [];
+          inputFields.innerHTML = '';
+          createBoxOverlays();
+          drawCanvas();
+        };
+      };
+      reader.readAsDataURL(file);
+    });
+
+    addBoxBtn.addEventListener('click', addBox);
+    saveTemplateBtn.addEventListener('click', saveTemplate);
+    loadTemplatesBtn.addEventListener('click', loadTemplates);
+
+    window.addEventListener('load', () => {
+      loadTemplates();
+    });
+  })();
   </script>
 </body>
 </html>
