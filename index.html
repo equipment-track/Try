@@ -5,251 +5,718 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Template Box Editor</title>
   <style>
+    :root {
+      --blue: #276ef1;
+      --yellow: #ffd600;
+      --red: #ea345e;
+      --bg: #f3f6fb;
+      --text-primary: #20233a;
+      --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
     body {
-      margin: 20px;
-      font-family: sans-serif;
-      background: #f0f6ff;
+      margin: 0;
+      font-family: var(--font-family);
+      background: var(--bg);
+      color: var(--text-primary);
+      display: flex;
+      min-height: 100vh;
+      justify-content: center;
+      align-items: flex-start;
     }
     .container {
-      max-width: 960px;
+      max-width: 950px;
+      margin: 24px;
       background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      margin: auto;
-      box-shadow: 0 8px 18px rgba(0,0,0,0.1);
+      border-radius: 14px;
+      box-shadow: 0 8px 28px rgba(34,34,68,0.09);
+      padding: 18px 18px 32px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    h2 {
+      color: var(--blue);
+      font-weight: 700;
+      text-align: center;
     }
     .controls {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 10px 14px;
       justify-content: center;
-      margin-bottom: 16px;
+      margin-bottom: 2px;
     }
-    .controls input, .controls button {
-      padding: 10px;
+    .controls > * {
       font-size: 1em;
+      padding: 11px 14px;
+      min-width: 130px;
+      border-radius: 7px;
+      border: 1px solid #dde4f1;
+      background: #f7fbff;
+      transition: border 0.23s;
+    }
+    .controls input[type="text"], .controls input[type="file"] {
+      background: #f4f8ff;
+    }
+    .controls button, .btn-main {
+      font-weight: 700;
+      color: #fff;
+      background: var(--blue);
+      border: none;
+      min-width: 110px;
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+    .controls button:hover, .btn-main:hover, .controls button:focus, .btn-main:focus {
+      background: #154ecb !important;
+      outline: none;
     }
     #inputFields {
-      margin-top: 10px;
-      margin-bottom: 12px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      background: #e1e8ff;
+      border: 1.5px solid #b3c7ec;
+      border-radius: 10px;
+      padding: 12px 22px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+      gap: 12px;
+      font-size: 1em;
     }
-    textarea {
-      width: 200px;
-      height: 60px;
+    .input-wrapper label {
+      color: var(--blue);
+      font-size: 1em;
+      margin-bottom: 3px;
+      font-weight: 600;
+      display: block;
     }
-    .btn-main {
-      padding: 10px 20px;
-      font-weight: bold;
-      background-color: #276ef1;
-      color: white;
-      border: none;
+    .input-wrapper textarea {
+      width: 100%;
+      font-size: 1em;
       border-radius: 6px;
-      cursor: pointer;
+      border: 1.2px solid #a9b9d6;
+      padding: 6px 8px;
+      resize: vertical;
+      min-height: 32px;
+      font-family: var(--font-family);
+    }
+    .input-wrapper .font-style-controls {
+      margin: 3px 0 0;
+      display: flex;
+      gap: 6px;
+      font-size: 0.97em;
     }
     #previewContainer {
       position: relative;
-      border: 2px solid #ccc;
+      border: 3px solid #c0cbed;
+      border-radius: 12px;
+      background: #f0f4ff;
+      padding: 0;
+      margin: 0 auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      max-width: 100vw;
       overflow: auto;
-      max-height: 600px;
+      min-height: 320px;
     }
-    canvas {
+    canvas#templateCanvas {
+      border-radius: 11px;
+      max-width: 100%;
+      max-height: 480px;
+      box-shadow: 0 2px 24px #e7eef9;
       display: block;
       background: white;
-      max-width: 100%;
     }
     .box-overlay {
       position: absolute;
-      border: 2px dashed orange;
-      background: rgba(255, 165, 0, 0.1);
-      box-sizing: border-box;
+      border: 2px dashed var(--yellow);
+      background: rgba(255, 210, 20, 0.085);
+      border-radius: 11px;
+      z-index: 8;
+      min-width: 50px;
+      min-height: 27px;
+      cursor: move;
+      user-select: none;
+      touch-action: none;
+    }
+    .box-overlay.selected {
+      border-color: var(--blue);
+      box-shadow: 0 0 20px 2px #276ef144;
+      z-index: 30;
+    }
+    .resize-grip {
+      position: absolute;
+      right: -9px;
+      bottom: -9px;
+      width: 16px;
+      height: 16px;
+      background: #ffd600;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 6px #ffd6008b;
+      cursor: nwse-resize;
+      z-index: 20;
+      touch-action: none;
+    }
+    .rotate-grip {
+      position: absolute;
+      right: -10px;
+      top: -18px;
+      width: 16px;
+      height: 16px;
+      background: #276ef1;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 7px #276ef1ad;
+      cursor: grab;
+      z-index: 20;
+      touch-action: none;
+    }
+    .buttons-row {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+    .btn-main {
+      font-size: 1.17em;
+      font-weight: 700;
+      border-radius: 12px;
+      border: none;
+      padding: 16px 38px;
+      background: var(--blue);
+      color: white;
+      cursor: pointer;
+      min-width: 180px;
+      box-shadow: 0 6px 22px #276ef144;
+    }
+    .template-list {
+      margin: 0 auto;
+      margin-top: 14px;
+      max-width: 340px;
+      background: #f5f8ff;
+      border-radius: 12px;
+      border: 1.5px solid #bcd7fe;
+      padding: 9px 18px 1px 18px;
+      box-shadow: 0 2px 8px #bcd7fe21;
+      display: none;
+    }
+    .template-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 7px;
+      color: var(--blue);
+      background: #e6f0ff;
+      border-radius: 4px;
+      padding: 4px 9px;
+      font-weight: 600;
+    }
+    .template-item button {
+      margin-left: 6px;
+      padding: 5px 12px;
+      font-size: 1em;
+      border-radius: 7px;
+    }
+    .template-item button.loadBtn { background: var(--blue); }
+    .template-item button.delBtn { background: var(--red); }
+    #toastMessage {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--blue);
+      color: #fff;
+      padding: 13px 24px;
+      border-radius: 22px;
+      font-weight: 600;
+      font-size: 1em;
+      z-index: 10000;
+      opacity: 0;
+      transition: opacity 0.3s;
+      box-shadow: 0 2px 14px #276ef188;
+    }
+    @media (max-width: 780px) {
+      #inputFields { grid-template-columns: 1fr; }
+      .controls { flex-direction: column; }
+      .controls > * { max-width: 100%; }
+      .container { padding: 7px 2vw 16px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2 style="text-align:center;">Template Box Editor</h2>
-    <div class="controls">
-      <input type="file" id="imageUpload" accept="image/*" />
-      <input type="text" id="boxName" placeholder="Box Name" />
-      <button id="addBoxBtn" class="btn-main">Add Box</button>
-      <input type="text" id="templateName" placeholder="Template Name" />
-      <button id="saveTemplateBtn" class="btn-main">Save Template</button>
-      <button id="loadTemplatesBtn" class="btn-main">Load Templates</button>
+  <div class="container" role="main" aria-label="Template Box Editor">
+    <h2>Template Box Editor</h2>
+    <div class="controls" role="region">
+      <input type="file" accept="image/*" id="imageUpload" aria-label="Upload Image"/>
+      <input type="text" placeholder="New Box Name" id="boxName" aria-label="Box Name Input" autocomplete="off"/>
+      <button id="addBoxBtn" aria-label="Add Box Button" title="Add Box">Add Box</button>
+      <input type="text" placeholder="Template Name" id="templateName" aria-label="Template Name Input" autocomplete="off"/>
+      <button id="saveTemplateBtn" aria-label="Save Template Button" title="Save Template">Save Template</button>
+      <button id="loadTemplatesBtn" aria-label="Load Templates Button" title="Load Templates">Load Templates</button>
     </div>
-    <div id="inputFields"></div>
-    <div id="previewContainer">
+
+    <div id="inputFields" role="form" aria-label="Box Text Inputs"></div>
+
+    <div id="previewContainer" aria-label="Image Preview Panel" tabindex="0">
       <canvas id="templateCanvas"></canvas>
     </div>
-    <div style="text-align:center; margin-top: 14px;">
-      <button id="generateTextBtn" class="btn-main">Generate Text</button>
-      <button id="downloadBtn" class="btn-main">Download</button>
+
+    <div class="buttons-row" role="region" aria-label="Action Buttons">
+      <button class="btn-main" id="generateTextBtn" aria-label="Generate Text Button" title="Generate Text">Generate Text</button>
+      <button class="btn-main" id="downloadBtn" aria-label="Download Image Button" title="Download Image">Download</button>
     </div>
+
+    <div class="template-list" id="templateList" aria-label="Saved Templates List"></div>
   </div>
 
   <script>
-    const imageUpload = document.getElementById("imageUpload");
-    const boxNameInput = document.getElementById("boxName");
-    const addBoxBtn = document.getElementById("addBoxBtn");
-    const templateNameInput = document.getElementById("templateName");
-    const saveTemplateBtn = document.getElementById("saveTemplateBtn");
-    const canvas = document.getElementById("templateCanvas");
-    const ctx = canvas.getContext("2d");
-    const inputFields = document.getElementById("inputFields");
+    (() => {
+      const imageUpload = document.getElementById('imageUpload');
+      const boxNameInput = document.getElementById('boxName');
+      const addBoxBtn = document.getElementById('addBoxBtn');
+      const templateNameInput = document.getElementById('templateName');
+      const saveTemplateBtn = document.getElementById('saveTemplateBtn');
+      const loadTemplatesBtn = document.getElementById('loadTemplatesBtn');
+      const inputFields = document.getElementById('inputFields');
+      const templateList = document.getElementById('templateList');
+      const generateTextBtn = document.getElementById('generateTextBtn');
+      const downloadBtn = document.getElementById('downloadBtn');
+      const canvas = document.getElementById('templateCanvas');
+      const ctx = canvas.getContext('2d');
 
-    let image = new Image();
-    let boxes = [];
+      let image = new Image();
+      let boxes = [];
+      let selectedBox = null;
 
-    function resizeCanvasToImage() {
-      canvas.width = image.width;
-      canvas.height = image.height;
-      drawCanvas();
-    }
-
-    function drawCanvas() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(image, 0, 0);
-
-      boxes.forEach((box) => {
-        ctx.save();
-        const centerX = box.x + box.width / 2;
-        const centerY = box.y + box.height / 2;
-        ctx.translate(centerX, centerY);
-        ctx.rotate((box.rotation || 0) * Math.PI / 180);
-        ctx.beginPath();
-        ctx.rect(-box.width / 2, -box.height / 2, box.width, box.height);
-        ctx.clip();
-
-        // Set text style
-        ctx.fillStyle = "black";
-        ctx.textBaseline = "top";
-        ctx.font = "16px Arial";
-        ctx.textAlign = box.align || "left";
-
-        const padding = 8;
-        const lineHeight = 20;
-        const lines = (box.text || "").split("\n");
-        for (let i = 0; i < lines.length; i++) {
-          const txt = lines[i];
-          let x = -box.width / 2 + padding;
-          if (ctx.textAlign === "center") x = 0;
-          if (ctx.textAlign === "right") x = box.width / 2 - padding;
-          const y = -box.height / 2 + padding + i * lineHeight;
-          if (y + lineHeight <= box.height / 2 - padding) {
-            ctx.fillText(txt, x, y, box.width - padding * 2);
-          }
-        }
-        ctx.restore();
-      });
-    }
-
-    imageUpload.addEventListener("change", () => {
-      const file = imageUpload.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        image.src = e.target.result;
-        image.onload = () => {
-          resizeCanvasToImage();
-          boxes = [];
-          inputFields.innerHTML = "";
-        };
-      };
-      reader.readAsDataURL(file);
-    });
-
-    addBoxBtn.addEventListener("click", () => {
-      const name = boxNameInput.value.trim();
-      if (!name) return;
-      if (boxes.find((b) => b.name === name)) {
-        alert("Box name must be unique");
-        return;
+      // Toast helper
+      function showToast(msg) {
+        if(document.getElementById('toastMessage')) return;
+        const t = document.createElement('div');
+        t.id = 'toastMessage';
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(()=>{ t.style.opacity = '1'; },10);
+        setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),300); },1600);
       }
-      const newBox = {
-        name,
-        text: "",
-        x: 50 + boxes.length * 10,
-        y: 50 + boxes.length * 10,
-        width: 200,
-        height: 80,
-        rotation: 0,
-        align: "left"
-      };
-      boxes.push(newBox);
 
-      const field = document.createElement("div");
-      const label = document.createElement("label");
-      label.textContent = name;
-      const textarea = document.createElement("textarea");
-      textarea.placeholder = `Text for ${name}`;
-      textarea.addEventListener("input", () => {
-        newBox.text = textarea.value;
-        drawCanvas();
-      });
-      field.appendChild(label);
-      field.appendChild(textarea);
-      inputFields.appendChild(field);
+      // Draw canvas with clipping text inside boxes
+      function drawCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!image.src) return;
+        ctx.drawImage(image, 0, 0);
+        boxes.forEach(box => {
+          ctx.save();
+          ctx.translate(box.left + box.width / 2, box.top + box.height / 2);
+          ctx.rotate((box.rotation || 0) * Math.PI / 180);
 
-      drawCanvas();
-    });
+          ctx.beginPath();
+          ctx.rect(-box.width / 2, -box.height / 2, box.width, box.height);
+          ctx.clip();
 
-    document.getElementById("generateTextBtn").addEventListener("click", () => {
-      drawCanvas();
-    });
+          ctx.fillStyle = '#222';
+          let fStyle = '';
+          if (box.styles?.italic) fStyle += 'italic ';
+          if (box.styles?.bold) fStyle += 'bold ';
+          ctx.font = `${fStyle}18px "Segoe UI", Arial, sans-serif`;
+          ctx.textAlign = box.styles?.align || 'left';
+          ctx.textBaseline = 'top';
 
-    document.getElementById("downloadBtn").addEventListener("click", () => {
-      const a = document.createElement("a");
-      a.download = "output.jpg";
-      canvas.toBlob((blob) => {
-        a.href = URL.createObjectURL(blob);
-        a.click();
-      }, "image/jpeg", 0.95);
-    });
+          const padding = 8;
+          const lineHeight = 22;
+          const lines = (box.text || "").split('\n');
 
-    saveTemplateBtn.addEventListener("click", () => {
-      const name = templateNameInput.value.trim();
-      if (!name) return alert("Enter a name");
-      const data = {
-        boxes,
-        image: image.src
-      };
-      localStorage.setItem("template_" + name, JSON.stringify(data));
-      alert("Template saved");
-    });
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const y = -box.height / 2 + padding + i * lineHeight;
 
-    document.getElementById("loadTemplatesBtn").addEventListener("click", () => {
-      const allKeys = Object.keys(localStorage).filter((k) =>
-        k.startsWith("template_")
-      );
-      const list = allKeys.map((k) => k.replace("template_", ""));
-      const selected = prompt("Available: " + list.join(", ") + "\nEnter name:");
-      const data = localStorage.getItem("template_" + selected);
-      if (!data) return alert("Not found");
-      const parsed = JSON.parse(data);
-      image.src = parsed.image;
-      image.onload = () => {
-        resizeCanvasToImage();
-        boxes = parsed.boxes || [];
-        inputFields.innerHTML = "";
-        boxes.forEach((box) => {
-          const wrap = document.createElement("div");
-          const label = document.createElement("label");
+            if (y + lineHeight > box.height / 2 - padding) break;
+
+            let x = -box.width / 2 + padding;
+            if (ctx.textAlign === "center") x = 0;
+            else if (ctx.textAlign === "right") x = box.width / 2 - padding;
+
+            ctx.fillText(line, x, y, box.width - padding * 2);
+          }
+
+          ctx.restore();
+        });
+      }
+
+      // Create overlays for boxes for drag/resize/rotate UI on top
+      function createBoxOverlays() {
+        document.querySelectorAll('.box-overlay').forEach(b => b.remove());
+        boxes.forEach(box => {
+          const el = document.createElement('div');
+          el.className = 'box-overlay' + (selectedBox && box.name === selectedBox.name ? ' selected' : '');
+          el.style.left = box.left + 'px';
+          el.style.top = box.top + 'px';
+          el.style.width = box.width + 'px';
+          el.style.height = box.height + 'px';
+          el.style.transform = `rotate(${box.rotation || 0}deg)`;
+          el.dataset.name = box.name;
+          el.tabIndex = 0;
+          el.innerHTML = `<div style="font-size:13px;font-weight:600;color:#333;text-align:center;">${box.name}</div>`;
+          addDragListeners(el, box);
+          addResizeHandles(el, box);
+          addRotateHandle(el, box);
+          el.addEventListener('click', () => {
+            selectedBox = box;
+            updateSelectionVisual();
+          });
+          document.getElementById('previewContainer').appendChild(el);
+        });
+      }
+
+      function updateSelectionVisual() {
+        document.querySelectorAll('.box-overlay').forEach(el => {
+          el.classList.toggle('selected', selectedBox && el.dataset.name === selectedBox.name);
+        });
+      }
+
+      // Drag handlers
+      function addDragListeners(el, box) {
+        let dragging = false, startX, startY, startL, startT;
+        el.addEventListener('pointerdown', e => {
+          if(e.target.classList.contains('resize-grip') || e.target.classList.contains('rotate-grip')) return;
+          dragging = true;
+          startX = e.clientX;
+          startY = e.clientY;
+          startL = box.left;
+          startT = box.top;
+          el.setPointerCapture(e.pointerId);
+          el.style.zIndex = 30;
+        });
+        el.addEventListener('pointermove', e => {
+          if(!dragging) return;
+          let dx = e.clientX - startX, dy = e.clientY - startY;
+          box.left = Math.min(Math.max(0, startL + dx), canvas.width - box.width);
+          box.top = Math.min(Math.max(0, startT + dy), canvas.height - box.height);
+          el.style.left = box.left + 'px';
+          el.style.top = box.top + 'px';
+          drawCanvas();
+        });
+        el.addEventListener('pointerup', () => {
+          dragging = false;
+          el.style.zIndex = 8;
+          drawCanvas();
+        });
+      }
+
+      // Resize handle (bottom-right)
+      function addResizeHandles(el, box) {
+        const grip = document.createElement('div');
+        grip.className = 'resize-grip';
+        let resizing = false, startX, startY, origW, origH;
+        grip.addEventListener('pointerdown', e => {
+          e.stopPropagation();
+          resizing = true;
+          startX = e.clientX;
+          startY = e.clientY;
+          origW = box.width;
+          origH = box.height;
+          document.body.style.userSelect = 'none';
+          grip.setPointerCapture(e.pointerId);
+        });
+        grip.addEventListener('pointermove', e => {
+          if(!resizing) return;
+          let dw = e.clientX - startX;
+          let dh = e.clientY - startY;
+          box.width = Math.min(Math.max(40, origW + dw), canvas.width - box.left);
+          box.height = Math.min(Math.max(20, origH + dh), canvas.height - box.top);
+          el.style.width = box.width + 'px';
+          el.style.height = box.height + 'px';
+          drawCanvas();
+        });
+        grip.addEventListener('pointerup', () => {
+          resizing = false;
+          document.body.style.userSelect = '';
+        });
+        el.appendChild(grip);
+      }
+
+      // Rotate handle (top-right)
+      function addRotateHandle(el, box) {
+        const grip = document.createElement('div');
+        grip.className = 'rotate-grip';
+        let rotating = false, center = {}, startAngle = 0, startRot = 0;
+        grip.addEventListener('pointerdown', e => {
+          e.preventDefault();
+          rotating = true;
+          center = { x: el.offsetLeft + el.offsetWidth/2, y: el.offsetTop + el.offsetHeight/2 };
+          startAngle = Math.atan2(e.clientY - center.y, e.clientX - center.x);
+          startRot = box.rotation || 0;
+          grip.setPointerCapture(e.pointerId);
+        });
+        grip.addEventListener('pointermove', e => {
+          if(!rotating) return;
+          const theta = Math.atan2(e.clientY - center.y, e.clientX - center.x);
+          let deg = startRot + (theta - startAngle)*180/Math.PI;
+          box.rotation = Math.round((deg+360)%360);
+          el.style.transform = `rotate(${box.rotation}deg)`;
+          drawCanvas();
+        });
+        grip.addEventListener('pointerup', () => { rotating = false; });
+        el.appendChild(grip);
+      }
+
+      // Sync UI: input fields for text + style controls
+      function updateInputFields() {
+        inputFields.innerHTML = '';
+        if (!boxes.length) {
+          inputFields.textContent = 'Add boxes to enter text here.';
+          return;
+        }
+        boxes.forEach(box => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'input-wrapper';
+
+          const label = document.createElement('label');
           label.textContent = box.name;
-          const textarea = document.createElement("textarea");
-          textarea.value = box.text || "";
-          textarea.addEventListener("input", () => {
+          label.htmlFor = `input-${box.name}`;
+
+          const textarea = document.createElement('textarea');
+          textarea.id = `input-${box.name}`;
+          textarea.dataset.name = box.name;
+          textarea.value = box.text || '';
+          textarea.placeholder = `Text for "${box.name}"`;
+          textarea.style.fontWeight = box.styles?.bold ? "700" : "400";
+          textarea.style.fontStyle = box.styles?.italic ? "italic" : "normal";
+          textarea.style.textAlign = box.styles?.align || "left";
+          textarea.addEventListener('input', () => {
             box.text = textarea.value;
             drawCanvas();
           });
-          wrap.appendChild(label);
-          wrap.appendChild(textarea);
-          inputFields.appendChild(wrap);
+
+          wrapper.appendChild(label);
+          wrapper.appendChild(textarea);
+
+          const ctrl = document.createElement('div');
+          ctrl.className = 'font-style-controls';
+
+          const boldLabel = document.createElement('label');
+          const boldCheckbox = document.createElement('input');
+          boldCheckbox.type = 'checkbox';
+          boldCheckbox.checked = box.styles?.bold;
+          boldCheckbox.addEventListener('change', () => {
+            box.styles.bold = boldCheckbox.checked;
+            textarea.style.fontWeight = boldCheckbox.checked ? "700" : "400";
+            drawCanvas();
+          });
+          boldLabel.appendChild(boldCheckbox);
+          boldLabel.appendChild(document.createTextNode('Bold'));
+          ctrl.appendChild(boldLabel);
+
+          const italicLabel = document.createElement('label');
+          const italicCheckbox = document.createElement('input');
+          italicCheckbox.type = 'checkbox';
+          italicCheckbox.checked = box.styles?.italic;
+          italicCheckbox.addEventListener('change', () => {
+            box.styles.italic = italicCheckbox.checked;
+            textarea.style.fontStyle = italicCheckbox.checked ? "italic" : "normal";
+            drawCanvas();
+          });
+          italicLabel.appendChild(italicCheckbox);
+          italicLabel.appendChild(document.createTextNode('Italic'));
+          ctrl.appendChild(italicLabel);
+
+          const alignLabel = document.createElement('label');
+          alignLabel.textContent = 'Align: ';
+          const alignSelect = document.createElement('select');
+          ['left', 'center', 'right'].forEach(a => {
+            const option = document.createElement('option');
+            option.value = a;
+            option.textContent = a.charAt(0).toUpperCase() + a.slice(1);
+            alignSelect.appendChild(option);
+          });
+          alignSelect.value = box.styles?.align || "left";
+          alignSelect.addEventListener('change', () => {
+            box.styles.align = alignSelect.value;
+            textarea.style.textAlign = alignSelect.value;
+            drawCanvas();
+          });
+          alignLabel.appendChild(alignSelect);
+          ctrl.appendChild(alignLabel);
+
+          wrapper.appendChild(ctrl);
+          inputFields.appendChild(wrapper);
+        });
+      }
+
+      // Save template to localStorage
+      function saveTemplate() {
+        const tplName = templateNameInput.value.trim();
+        if (!tplName) {
+          showToast("Enter template name");
+          return;
+        }
+        if (!image.src) {
+          showToast("Upload image first");
+          return;
+        }
+        if (Object.keys(localStorage).some(k => k.toLowerCase() === ('template_' + tplName).toLowerCase())) {
+          showToast("Template name must be unique");
+          return;
+        }
+        boxes.forEach(box => {
+          const txtarea = inputFields.querySelector(`textarea[data-name="${box.name}"]`);
+          if (txtarea) box.text = txtarea.value;
+        });
+        localStorage.setItem('template_' + tplName, JSON.stringify({
+          imageSrc: image.src,
+          boxes: boxes
+        }));
+        showToast(`Template "${tplName}" saved`);
+        loadTemplates();
+      }
+
+      // Load saved templates list in UI
+      function loadTemplates() {
+        if (templateList.style.display === "block") {
+          templateList.style.display = "none";
+          return;
+        }
+        templateList.style.display = "block";
+        templateList.innerHTML = '';
+        let keys = Object.keys(localStorage).filter(k => k.startsWith('template_'));
+        if (!keys.length) {
+          templateList.textContent = "No saved templates.";
+          return;
+        }
+        keys.forEach(key => {
+          const tplName = key.slice(9);
+          const div = document.createElement('div');
+          div.className = 'template-item';
+          const span = document.createElement('span');
+          span.textContent = tplName;
+          const loadBtn = document.createElement('button');
+          loadBtn.className = 'loadBtn';
+          loadBtn.textContent = 'Load';
+          loadBtn.onclick = () => {
+            const tpl = JSON.parse(localStorage.getItem(key));
+            if (!tpl) {
+              showToast("Failed to load");
+              return;
+            }
+            image.src = tpl.imageSrc;
+            image.onload = () => {
+              canvas.width = image.width;
+              canvas.height = image.height;
+              boxes = (tpl.boxes || []).map(b => Object.assign({}, b));
+              updateInputFields();
+              createBoxOverlays();
+              drawCanvas();
+              templateNameInput.value = tplName;
+            };
+            templateList.style.display = "none";
+            showToast(`Template "${tplName}" loaded`);
+          };
+          const delBtn = document.createElement('button');
+          delBtn.className = 'delBtn';
+          delBtn.textContent = 'Delete';
+          delBtn.onclick = () => {
+            if (confirm(`Delete template "${tplName}"?`)) {
+              localStorage.removeItem(key);
+              loadTemplates();
+              showToast(`Template "${tplName}" deleted`);
+            }
+          };
+          div.appendChild(span);
+          div.appendChild(loadBtn);
+          div.appendChild(delBtn);
+          templateList.appendChild(div);
+        });
+      }
+
+      // Add new box
+      function addBox() {
+        const name = boxNameInput.value.trim();
+        if (!name) {
+          showToast('Enter a box name');
+          return;
+        }
+        if (boxes.some(b => b.name.toLowerCase() === name.toLowerCase())) {
+          showToast('Box name already exists');
+          return;
+        }
+        if (!image.src) {
+          showToast('Upload image first');
+          return;
+        }
+        boxes.push({
+          name,
+          left: 70,
+          top: 70,
+          width: 150,
+          height: 50,
+          rotation: 0,
+          text: '',
+          styles: { bold: false, italic: false, align: 'left' }
+        });
+        boxNameInput.value = '';
+        updateInputFields();
+        createBoxOverlays();
+        drawCanvas();
+        showToast(`Box "${name}" added`);
+      }
+
+      // Generate text overlay on canvas from textarea inputs
+      function generateText() {
+        boxes.forEach(box => {
+          const txtarea = inputFields.querySelector(`textarea[data-name="${box.name}"]`);
+          if (txtarea) box.text = txtarea.value;
         });
         drawCanvas();
-      };
-    });
+        showToast('Text generated');
+      }
+
+      // Download image as JPEG
+      function download() {
+        if (!image.src) {
+          showToast("No canvas to export");
+          return;
+        }
+        canvas.toBlob(blob => {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'template-output.jpg';
+          a.click();
+          URL.revokeObjectURL(a.href);
+        }, 'image/jpeg', 0.97);
+      }
+
+      // Event listeners
+      imageUpload.addEventListener('change', () => {
+        const file = imageUpload.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+          image.src = e.target.result;
+          image.onload = () => {
+            canvas.width = image.width;
+            canvas.height = image.height;
+            boxes = [];
+            inputFields.innerHTML = '';
+            createBoxOverlays();
+            drawCanvas();
+          };
+        };
+        reader.readAsDataURL(file);
+      });
+
+      addBoxBtn.addEventListener('click', addBox);
+      saveTemplateBtn.addEventListener('click', saveTemplate);
+      loadTemplatesBtn.addEventListener('click', loadTemplates);
+      generateTextBtn.addEventListener('click', generateText);
+      downloadBtn.addEventListener('click', download);
+
+      window.addEventListener('load', () => {
+        loadTemplates();
+      });
+    })();
   </script>
 </body>
 </html>
