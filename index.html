@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Template Box Editor</title>
+<title>Template Box Editor (No Rotation)</title>
 <style>
   :root {
     --blue: #276ef1;
@@ -164,20 +164,6 @@
     z-index: 20;
     touch-action: none;
   }
-  .rotate-grip {
-    position: absolute;
-    right: -10px;
-    top: -18px;
-    width: 16px;
-    height: 16px;
-    background: #276ef1;
-    border-radius: 50%;
-    border: 2px solid #fff;
-    box-shadow: 0 0 7px #276ef1ad;
-    cursor: grab;
-    z-index: 20;
-    touch-action: none;
-  }
   .buttons-row {
     display: flex;
     justify-content: center;
@@ -253,7 +239,7 @@
 </head>
 <body>
   <div class="container" role="main" aria-label="Template Box Editor">
-    <h2>Template Box Editor</h2>
+    <h2>Template Box Editor (No Rotation)</h2>
     <div class="controls" role="region" aria-label="Control Panel">
       <input type="file" accept="image/*" id="imageUpload" aria-label="Upload Image"/>
       <input type="text" placeholder="New Box Name" id="boxName" aria-label="Box Name Input" autocomplete="off"/>
@@ -306,15 +292,11 @@
 
         boxes.forEach(box => {
           ctx.save();
-          // Translate origin to box top-left corner
-          ctx.translate(box.left, box.top);
-          // Move origin to box center for rotation
-          ctx.translate(box.width / 2, box.height / 2);
-          ctx.rotate((box.rotation || 0) * Math.PI / 180);
-          // Move origin back to top-left corner
-          ctx.translate(-box.width / 2, -box.height / 2);
 
-          // Clip to box rectangle
+          // No rotation: translate to box top-left corner only
+          ctx.translate(box.left, box.top);
+
+          // Clip inside box rectangle
           ctx.beginPath();
           ctx.rect(0, 0, box.width, box.height);
           ctx.clip();
@@ -333,15 +315,15 @@
           const padding = 8;
           const lineHeight = fontSize * 1.25;
           const lines = (box.text || '').split('\n');
-          for(let i = 0; i < lines.length; i++) {
+          for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const y = padding + i * lineHeight;
-            if(y + lineHeight > box.height - padding) break;
+            if (y + lineHeight > box.height - padding) break;
 
             let x;
-            if(align === 'left') x = padding;
-            else if(align === 'center') x = box.width / 2;
-            else if(align === 'right') x = box.width - padding;
+            if (align === 'left') x = padding;
+            else if (align === 'center') x = box.width / 2;
+            else if (align === 'right') x = box.width - padding;
 
             ctx.fillText(line, x, y, box.width - 2 * padding);
           }
@@ -359,13 +341,12 @@
           el.style.top = box.top + "px";
           el.style.width = box.width + "px";
           el.style.height = box.height + "px";
-          el.style.transform = `rotate(${box.rotation || 0}deg)`;
+          // No rotation, so no transform on overlay
           el.dataset.name = box.name;
           el.tabIndex = 0;
           el.innerHTML = `<div style="font-size:13px;font-weight:600;color:#333;text-align:center;">${box.name}</div>`;
           addDragListeners(el, box);
           addResizeHandles(el, box);
-          addRotateHandle(el, box);
           el.addEventListener('click', () => {
             selectedBox = box;
             updateSelectionVisual();
@@ -383,7 +364,7 @@
       function addDragListeners(el, box) {
         let dragging = false, startX, startY, startL, startT;
         el.addEventListener('pointerdown', e => {
-          if(e.target.classList.contains('resize-grip') || e.target.classList.contains('rotate-grip')) return;
+          if (e.target.classList.contains('resize-grip')) return;
           dragging = true;
           startX = e.clientX;
           startY = e.clientY;
@@ -437,30 +418,6 @@
           resizing = false;
           document.body.style.userSelect = '';
         });
-        el.appendChild(grip);
-      }
-
-      function addRotateHandle(el, box) {
-        const grip = document.createElement('div');
-        grip.className = 'rotate-grip';
-        let rotating = false, center = {}, startAngle = 0, startRot = 0;
-        grip.addEventListener('pointerdown', e => {
-          e.preventDefault();
-          rotating = true;
-          center = { x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight / 2 };
-          startAngle = Math.atan2(e.clientY - center.y, e.clientX - center.x);
-          startRot = box.rotation || 0;
-          grip.setPointerCapture(e.pointerId);
-        });
-        grip.addEventListener('pointermove', e => {
-          if(!rotating) return;
-          const theta = Math.atan2(e.clientY - center.y, e.clientX - center.x);
-          let deg = startRot + (theta - startAngle) * 180 / Math.PI;
-          box.rotation = Math.round((deg + 360) % 360);
-          el.style.transform = `rotate(${box.rotation}deg)`;
-          drawCanvas();
-        });
-        grip.addEventListener('pointerup', () => { rotating = false; });
         el.appendChild(grip);
       }
 
@@ -675,7 +632,7 @@
           top: 70,
           width: 150,
           height: 50,
-          rotation: 0,
+          rotation: 0, // no rotation applied
           text: '',
           styles: { bold: false, italic: false, align: 'left', fontSize: 18 }
         });
