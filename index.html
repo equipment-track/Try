@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Template Box Editor</title>
   <style>
     :root {
@@ -258,18 +258,14 @@
       <button id="saveTemplateBtn" aria-label="Save Template Button" title="Save Template">Save Template</button>
       <button id="loadTemplatesBtn" aria-label="Load Templates Button" title="Load Templates">Load Templates</button>
     </div>
-
     <div id="inputFields" role="form" aria-label="Box Text Inputs"></div>
-
     <div id="previewContainer" aria-label="Image Preview Panel" tabindex="0">
       <canvas id="templateCanvas"></canvas>
     </div>
-
     <div class="buttons-row" role="region" aria-label="Action Buttons">
       <button class="btn-main" id="generateTextBtn" aria-label="Generate Text Button" title="Generate Text">Generate Text</button>
       <button class="btn-main" id="downloadBtn" aria-label="Download Image Button" title="Download Image">Download</button>
     </div>
-
     <div class="template-list" id="templateList" aria-label="Saved Templates List"></div>
   </div>
 
@@ -287,12 +283,10 @@
       const downloadBtn = document.getElementById('downloadBtn');
       const canvas = document.getElementById('templateCanvas');
       const ctx = canvas.getContext('2d');
-
       let image = new Image();
       let boxes = [];
       let selectedBox = null;
 
-      // Toast helper
       function showToast(msg) {
         if(document.getElementById('toastMessage')) return;
         const t = document.createElement('div');
@@ -303,7 +297,6 @@
         setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),300); },1600);
       }
 
-      // Draw canvas with clipping text inside boxes
       function drawCanvas() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (!image.src) return;
@@ -313,6 +306,7 @@
           ctx.translate(box.left + box.width / 2, box.top + box.height / 2);
           ctx.rotate((box.rotation || 0) * Math.PI / 180);
 
+          // Clipping inside the rotated box
           ctx.beginPath();
           ctx.rect(-box.width / 2, -box.height / 2, box.width, box.height);
           ctx.clip();
@@ -322,31 +316,30 @@
           if (box.styles?.italic) fStyle += 'italic ';
           if (box.styles?.bold) fStyle += 'bold ';
           ctx.font = `${fStyle}18px "Segoe UI", Arial, sans-serif`;
-          ctx.textAlign = box.styles?.align || 'left';
-          ctx.textBaseline = 'top';
 
+          let align = box.styles?.align || "left";
+          ctx.textAlign = align;
+          ctx.textBaseline = 'top';
           const padding = 8;
           const lineHeight = 22;
           const lines = (box.text || "").split('\n');
-
           for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            const y = -box.height / 2 + padding + i * lineHeight;
-
+            let y = -box.height / 2 + padding + i * lineHeight;
+            // Stop drawing if bottom of the line is below box limit
             if (y + lineHeight > box.height / 2 - padding) break;
 
-            let x = -box.width / 2 + padding;
-            if (ctx.textAlign === "center") x = 0;
-            else if (ctx.textAlign === "right") x = box.width / 2 - padding;
+            let x;
+            if (align === "left") x = -box.width / 2 + padding;
+            else if (align === "center") x = 0;
+            else if (align === "right") x = box.width / 2 - padding;
 
-            ctx.fillText(line, x, y, box.width - padding * 2);
+            ctx.fillText(line, x, y, box.width - 2 * padding);
           }
-
           ctx.restore();
         });
       }
 
-      // Create overlays for boxes for drag/resize/rotate UI on top
       function createBoxOverlays() {
         document.querySelectorAll('.box-overlay').forEach(b => b.remove());
         boxes.forEach(box => {
@@ -377,7 +370,6 @@
         });
       }
 
-      // Drag handlers
       function addDragListeners(el, box) {
         let dragging = false, startX, startY, startL, startT;
         el.addEventListener('pointerdown', e => {
@@ -406,7 +398,6 @@
         });
       }
 
-      // Resize handle (bottom-right)
       function addResizeHandles(el, box) {
         const grip = document.createElement('div');
         grip.className = 'resize-grip';
@@ -438,7 +429,6 @@
         el.appendChild(grip);
       }
 
-      // Rotate handle (top-right)
       function addRotateHandle(el, box) {
         const grip = document.createElement('div');
         grip.className = 'rotate-grip';
@@ -463,7 +453,6 @@
         el.appendChild(grip);
       }
 
-      // Sync UI: input fields for text + style controls
       function updateInputFields() {
         inputFields.innerHTML = '';
         if (!boxes.length) {
@@ -473,11 +462,9 @@
         boxes.forEach(box => {
           const wrapper = document.createElement('div');
           wrapper.className = 'input-wrapper';
-
           const label = document.createElement('label');
           label.textContent = box.name;
           label.htmlFor = `input-${box.name}`;
-
           const textarea = document.createElement('textarea');
           textarea.id = `input-${box.name}`;
           textarea.dataset.name = box.name;
@@ -490,13 +477,10 @@
             box.text = textarea.value;
             drawCanvas();
           });
-
           wrapper.appendChild(label);
           wrapper.appendChild(textarea);
-
           const ctrl = document.createElement('div');
           ctrl.className = 'font-style-controls';
-
           const boldLabel = document.createElement('label');
           const boldCheckbox = document.createElement('input');
           boldCheckbox.type = 'checkbox';
@@ -509,7 +493,6 @@
           boldLabel.appendChild(boldCheckbox);
           boldLabel.appendChild(document.createTextNode('Bold'));
           ctrl.appendChild(boldLabel);
-
           const italicLabel = document.createElement('label');
           const italicCheckbox = document.createElement('input');
           italicCheckbox.type = 'checkbox';
@@ -522,7 +505,6 @@
           italicLabel.appendChild(italicCheckbox);
           italicLabel.appendChild(document.createTextNode('Italic'));
           ctrl.appendChild(italicLabel);
-
           const alignLabel = document.createElement('label');
           alignLabel.textContent = 'Align: ';
           const alignSelect = document.createElement('select');
@@ -540,13 +522,11 @@
           });
           alignLabel.appendChild(alignSelect);
           ctrl.appendChild(alignLabel);
-
           wrapper.appendChild(ctrl);
           inputFields.appendChild(wrapper);
         });
       }
 
-      // Save template to localStorage
       function saveTemplate() {
         const tplName = templateNameInput.value.trim();
         if (!tplName) {
@@ -573,7 +553,6 @@
         loadTemplates();
       }
 
-      // Load saved templates list in UI
       function loadTemplates() {
         if (templateList.style.display === "block") {
           templateList.style.display = "none";
@@ -631,7 +610,6 @@
         });
       }
 
-      // Add new box
       function addBox() {
         const name = boxNameInput.value.trim();
         if (!name) {
@@ -663,7 +641,6 @@
         showToast(`Box "${name}" added`);
       }
 
-      // Generate text overlay on canvas from textarea inputs
       function generateText() {
         boxes.forEach(box => {
           const txtarea = inputFields.querySelector(`textarea[data-name="${box.name}"]`);
@@ -673,7 +650,6 @@
         showToast('Text generated');
       }
 
-      // Download image as JPEG
       function download() {
         if (!image.src) {
           showToast("No canvas to export");
@@ -688,7 +664,6 @@
         }, 'image/jpeg', 0.97);
       }
 
-      // Event listeners
       imageUpload.addEventListener('change', () => {
         const file = imageUpload.files[0];
         if (!file) return;
