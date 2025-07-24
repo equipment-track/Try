@@ -1,681 +1,339 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Template Box Editor (No Rotation, Correct Text Placement)</title>
-<style>
-  :root {
-    --blue: #276ef1;
-    --yellow: #ffd600;
-    --red: #ea345e;
-    --bg: #f3f6fb;
-    --text-primary: #20233a;
-    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  }
-  body {
-    margin: 0;
-    font-family: var(--font-family);
-    background: var(--bg);
-    color: var(--text-primary);
-    display: flex;
-    min-height: 100vh;
-    justify-content: center;
-    align-items: flex-start;
-  }
-  .container {
-    max-width: 950px;
-    margin: 24px;
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 8px 28px rgba(34,34,68,0.09);
-    padding: 18px 18px 32px;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-  }
-  h2 {
-    color: var(--blue);
-    font-weight: 700;
-    text-align: center;
-  }
-  .controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 14px;
-    justify-content: center;
-    margin-bottom: 2px;
-  }
-  .controls > * {
-    font-size: 1em;
-    padding: 11px 14px;
-    min-width: 130px;
-    border-radius: 7px;
-    border: 1px solid #dde4f1;
-    background: #f7fbff;
-    transition: border 0.23s;
-  }
-  .controls input[type="text"], .controls input[type="file"], .controls select {
-    background: #f4f8ff;
-  }
-  .controls button, .btn-main {
-    font-weight: 700;
-    color: #fff;
-    background: var(--blue);
-    border: none;
-    min-width: 110px;
-    transition: background 0.2s;
-    cursor: pointer;
-  }
-  .controls button:hover, .btn-main:hover, .controls button:focus, .btn-main:focus {
-    background: #154ecb !important;
-    outline: none;
-  }
-  #inputFields {
-    max-height: 200px;
-    overflow-y: auto;
-    background: #e1e8ff;
-    border: 1.5px solid #b3c7ec;
-    border-radius: 10px;
-    padding: 12px 22px;
-    display: grid;
-    grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
-    gap: 12px;
-    font-size: 1em;
-  }
-  .input-wrapper label {
-    color: var(--blue);
-    font-size: 1em;
-    margin-bottom: 3px;
-    font-weight: 600;
-    display: block;
-  }
-  .input-wrapper textarea {
-    width: 100%;
-    font-size: 1em;
-    border-radius: 6px;
-    border: 1.2px solid #a9b9d6;
-    padding: 6px 8px;
-    resize: vertical;
-    min-height: 32px;
-    font-family: var(--font-family);
-  }
-  .font-style-controls {
-    margin: 3px 0 0;
-    display: flex;
-    gap: 8px;
-    font-size: 0.95em;
-    align-items: center;
-  }
-  .font-style-controls label {
-    cursor: pointer;
-  }
-  #previewContainer {
-    position: relative;
-    border: 3px solid #c0cbed;
-    border-radius: 12px;
-    background: #f0f4ff;
-    padding: 0;
-    margin: 0 auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    max-width: 100vw;
-    overflow: auto;
-    min-height: 320px;
-  }
-  canvas#templateCanvas {
-    border-radius: 11px;
-    max-width: 100%;
-    max-height: 480px;
-    box-shadow: 0 2px 24px #e7eef9;
-    display: block;
-    background: white;
-  }
-  .box-overlay {
-    position: absolute;
-    border: 2px dashed var(--yellow);
-    background: rgba(255, 210, 20, 0.085);
-    border-radius: 11px;
-    z-index: 8;
-    min-width: 50px;
-    min-height: 27px;
-    cursor: move;
-    user-select: none;
-    touch-action: none;
-  }
-  .box-overlay.selected {
-    border-color: var(--blue);
-    box-shadow: 0 0 20px 2px #276ef144;
-    z-index: 30;
-  }
-  .resize-grip {
-    position: absolute;
-    right: -9px;
-    bottom: -9px;
-    width: 16px;
-    height: 16px;
-    background: #ffd600;
-    border-radius: 50%;
-    border: 2px solid #fff;
-    box-shadow: 0 0 6px #ffd6008b;
-    cursor: nwse-resize;
-    z-index: 20;
-    touch-action: none;
-  }
-  .buttons-row {
-    display: flex;
-    justify-content: center;
-    gap: 24px;
-    flex-wrap: wrap;
-    margin-top: 14px;
-  }
-  .btn-main {
-    font-size: 1.17em;
-    font-weight: 700;
-    border-radius: 12px;
-    border: none;
-    padding: 16px 38px;
-    background: var(--blue);
-    color: white;
-    cursor: pointer;
-    min-width: 180px;
-    box-shadow: 0 6px 22px #276ef144;
-  }
-  .template-list {
-    margin: 0 auto;
-    margin-top: 14px;
-    max-width: 340px;
-    background: #f5f8ff;
-    border-radius: 12px;
-    border: 1.5px solid #bcd7fe;
-    padding: 9px 18px 1px 18px;
-    box-shadow: 0 2px 8px #bcd7fe21;
-    display: none;
-  }
-  .template-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 7px;
-    color: var(--blue);
-    background: #e6f0ff;
-    border-radius: 4px;
-    padding: 4px 9px;
-    font-weight: 600;
-  }
-  .template-item button {
-    margin-left: 6px;
-    padding: 5px 12px;
-    font-size: 1em;
-    border-radius: 7px;
-  }
-  .template-item button.loadBtn { background: var(--blue); }
-  .template-item button.delBtn { background: var(--red); }
-  #toastMessage {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--blue);
-    color: #fff;
-    padding: 13px 24px;
-    border-radius: 22px;
-    font-weight: 600;
-    font-size: 1em;
-    z-index: 10000;
-    opacity: 0;
-    transition: opacity 0.3s;
-    box-shadow: 0 2px 14px #276ef188;
-  }
-  @media (max-width: 780px) {
-    #inputFields { grid-template-columns: 1fr; }
-    .controls { flex-direction: column; }
-    .controls > * { max-width: 100%; }
-    .container { padding: 7px 2vw 16px; }
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Template Box Editor</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f7f9fc;
+      color: #333;
+    }
+
+    header {
+      background-color: #005f73;
+      padding: 1rem;
+      color: white;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+
+    .container {
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .template-controls {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .template-controls input[type="file"],
+    .template-controls button {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .template-controls button:hover {
+      background-color: #e0e0e0;
+    }
+
+    #canvas-container {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      border: 2px dashed #ccc;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    canvas {
+      max-width: 100%;
+      display: block;
+    }
+
+    .box {
+      position: absolute;
+      border: 2px solid yellow;
+      background-color: rgba(255, 255, 0, 0.3);
+      resize: both;
+      overflow: auto;
+      min-width: 30px;
+      min-height: 30px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: move;
+    }
+
+    .drag-symbol {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      font-size: 1.2rem;
+      cursor: move;
+    }
+
+    .input-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      background-color: #ffffff;
+      border-radius: 8px;
+      padding: 1rem;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .input-panel label {
+      font-weight: 500;
+    }
+
+    .input-panel input[type="text"] {
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    .template-list {
+      margin-top: 1rem;
+    }
+
+    .template-item {
+      background-color: #eef2f7;
+      margin: 0.25rem 0;
+      padding: 0.5rem;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .template-item button {
+      background-color: #ff5e5e;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+    }
+
+    .template-item button:hover {
+      background-color: #e84848;
+    }
+  </style>
 </head>
 <body>
-  <div class="container" role="main" aria-label="Template Box Editor">
-    <h2>Template Box Editor</h2>
-    <div class="controls" role="region" aria-label="Control Panel">
-      <input type="file" accept="image/*" id="imageUpload" aria-label="Upload Image" />
-      <input type="text" placeholder="New Box Name" id="boxName" aria-label="Box Name Input" autocomplete="off" />
-      <button id="addBoxBtn" aria-label="Add Box Button" title="Add Box">Add Box</button>
-      <input type="text" placeholder="Template Name" id="templateName" aria-label="Template Name Input" autocomplete="off" />
-      <button id="saveTemplateBtn" aria-label="Save Template Button" title="Save Template">Save Template</button>
-      <button id="loadTemplatesBtn" aria-label="Load Templates Button" title="Load Templates">Load Templates</button>
+  <header>📐 Template Box Editor</header>
+  <div class="container">
+    <div class="template-controls">
+      <input type="file" id="imageLoader" accept="image/*">
+      <button onclick="addBox()">Add Box</button>
+      <button onclick="generateText()">Generate Text</button>
+      <button onclick="downloadImage()">Download Image</button>
+      <button onclick="saveTemplate()">Save Template</button>
+      <button onclick="loadTemplateList()">Load Templates</button>
     </div>
-    <div id="inputFields" role="form" aria-label="Box Text Inputs"></div>
-    <div id="previewContainer" aria-label="Image Preview Panel" tabindex="0">
-      <canvas id="templateCanvas"></canvas>
+    <div id="canvas-container">
+      <canvas id="imageCanvas"></canvas>
     </div>
-    <div class="buttons-row" role="region" aria-label="Action Buttons">
-      <button class="btn-main" id="downloadBtn" aria-label="Download Image Button" title="Download Image">Download</button>
-    </div>
-    <div class="template-list" id="templateList" aria-label="Saved Templates List"></div>
+    <div class="input-panel" id="inputPanel"></div>
+    <div class="template-list" id="templateList"></div>
   </div>
 
   <script>
-  (() => {
-    const imageUpload = document.getElementById('imageUpload');
-    const boxNameInput = document.getElementById('boxName');
-    const addBoxBtn = document.getElementById('addBoxBtn');
-    const templateNameInput = document.getElementById('templateName');
-    const saveTemplateBtn = document.getElementById('saveTemplateBtn');
-    const loadTemplatesBtn = document.getElementById('loadTemplatesBtn');
-    const inputFields = document.getElementById('inputFields');
-    const templateList = document.getElementById('templateList');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const canvas = document.getElementById('templateCanvas');
-    const ctx = canvas.getContext('2d');
+    const canvas = document.getElementById("imageCanvas");
+    const ctx = canvas.getContext("2d");
+    const imageLoader = document.getElementById("imageLoader");
+    const container = document.getElementById("canvas-container");
+    const inputPanel = document.getElementById("inputPanel");
+    const templateList = document.getElementById("templateList");
 
-    let image = new Image();
+    let img = new Image();
     let boxes = [];
-    let selectedBox = null;
+    let currentImage = null;
+    let templateName = "";
 
-    function showToast(msg) {
-      if (document.getElementById('toastMessage')) return;
-      const t = document.createElement('div');
-      t.id = 'toastMessage';
-      t.textContent = msg;
-      document.body.appendChild(t);
-      setTimeout(() => { t.style.opacity = '1'; }, 10);
-      setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 1600);
+    imageLoader.addEventListener("change", function (e) {
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        img.onload = function () {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          currentImage = event.target.result;
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    });
+
+    function addBox() {
+      const name = prompt("Enter box name:");
+      if (!name) return;
+      const div = document.createElement("div");
+      div.className = "box";
+      div.style.left = "10px";
+      div.style.top = "10px";
+      div.style.width = "100px";
+      div.style.height = "50px";
+      div.setAttribute("data-name", name);
+      div.innerHTML = `<span class='drag-symbol'>+</span>`;
+
+      makeDraggable(div);
+      container.appendChild(div);
+      boxes.push(div);
+      renderInputPanel();
     }
 
-    function drawCanvas() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (!image.src) return;
-      ctx.drawImage(image, 0, 0);
+    function makeDraggable(el) {
+      let offsetX, offsetY;
 
-      boxes.forEach(box => {
-        ctx.save();
+      const symbol = el.querySelector(".drag-symbol");
+      symbol.addEventListener("touchstart", startDrag);
+      symbol.addEventListener("mousedown", startDrag);
 
-        // Translate origin to box top-left
-        ctx.translate(box.left, box.top);
-
-        ctx.beginPath();
-        ctx.rect(0, 0, box.width, box.height);
-        ctx.clip();
-
-        ctx.fillStyle = '#222';
-        let fStyle = '';
-        if (box.styles?.italic) fStyle += 'italic ';
-        if (box.styles?.bold) fStyle += 'bold ';
-        const fontSize = box.styles?.fontSize || 18;
-        ctx.font = `${fStyle}${fontSize}px "Segoe UI", Arial, sans-serif`;
-
-        const align = box.styles?.align || 'left';
-        ctx.textAlign = align;
-        ctx.textBaseline = 'top';
-
-        const padding = 8;
-        const lineHeight = fontSize * 1.25;
-        const lines = (box.text || '').split('\n');
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          const y = padding + i * lineHeight;
-          if (y + lineHeight > box.height - padding) break;
-
-          let x;
-          if (align === 'left') x = padding;
-          else if (align === 'center') x = box.width / 2;
-          else if (align === 'right') x = box.width - padding;
-
-          ctx.fillText(line, x, y, box.width - 2 * padding);
-        }
-
-        ctx.restore();
-      });
-    }
-
-    function createBoxOverlays() {
-      document.querySelectorAll('.box-overlay').forEach(el => el.remove());
-      boxes.forEach(box => {
-        const el = document.createElement('div');
-        el.className = 'box-overlay' + (selectedBox && box.name === selectedBox.name ? ' selected' : '');
-        el.style.left = box.left + "px";
-        el.style.top = box.top + "px";
-        el.style.width = box.width + "px";
-        el.style.height = box.height + "px";
-        el.dataset.name = box.name;
-        el.tabIndex = 0;
-        el.innerHTML = `<div style="font-size:13px;font-weight:600;color:#333;text-align:center;">${box.name}</div>`;
-        addDragListeners(el, box);
-        addResizeHandles(el, box);
-        el.addEventListener('click', () => {
-          selectedBox = box;
-          updateSelectionVisual();
-        });
-        document.getElementById('previewContainer').appendChild(el);
-      });
-    }
-
-    function updateSelectionVisual() {
-      document.querySelectorAll('.box-overlay').forEach(el => {
-        el.classList.toggle('selected', selectedBox && el.dataset.name === selectedBox.name);
-      });
-    }
-
-    function addDragListeners(el, box) {
-      let dragging = false, startX, startY, startL, startT;
-      el.addEventListener('pointerdown', e => {
-        if (e.target.classList.contains('resize-grip')) return;
-        dragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        startL = box.left;
-        startT = box.top;
-        el.setPointerCapture(e.pointerId);
-        el.style.zIndex = 30;
-      });
-      el.addEventListener('pointermove', e => {
-        if (!dragging) return;
-        let dx = e.clientX - startX;
-        let dy = e.clientY - startY;
-        box.left = Math.min(Math.max(0, startL + dx), canvas.width - box.width);
-        box.top = Math.min(Math.max(0, startT + dy), canvas.height - box.height);
-        el.style.left = box.left + "px";
-        el.style.top = box.top + "px";
-        drawCanvas();
-      });
-      el.addEventListener('pointerup', () => {
-        dragging = false;
-        el.style.zIndex = 8;
-        drawCanvas();
-      });
-    }
-
-    function addResizeHandles(el, box) {
-      const grip = document.createElement('div');
-      grip.className = 'resize-grip';
-      let resizing = false, startX, startY, origW, origH;
-      grip.addEventListener('pointerdown', e => {
-        e.stopPropagation();
-        resizing = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        origW = box.width;
-        origH = box.height;
-        document.body.style.userSelect = 'none';
-        grip.setPointerCapture(e.pointerId);
-      });
-      grip.addEventListener('pointermove', e => {
-        if (!resizing) return;
-        let dw = e.clientX - startX;
-        let dh = e.clientY - startY;
-        box.width = Math.min(Math.max(40, origW + dw), canvas.width - box.left);
-        box.height = Math.min(Math.max(20, origH + dh), canvas.height - box.top);
-        el.style.width = box.width + "px";
-        el.style.height = box.height + "px";
-        drawCanvas();
-      });
-      grip.addEventListener('pointerup', () => {
-        resizing = false;
-        document.body.style.userSelect = '';
-      });
-      el.appendChild(grip);
-    }
-
-    function updateInputFields() {
-      inputFields.innerHTML = '';
-      if (!boxes.length) {
-        inputFields.textContent = 'Add boxes to enter text here.';
-        return;
+      function startDrag(e) {
+        e.preventDefault();
+        const rect = el.getBoundingClientRect();
+        offsetX = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+        offsetY = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+        document.addEventListener("mousemove", onDrag);
+        document.addEventListener("mouseup", endDrag);
+        document.addEventListener("touchmove", onDrag);
+        document.addEventListener("touchend", endDrag);
       }
+
+      function onDrag(e) {
+        e.preventDefault();
+        let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        el.style.left = clientX - offsetX + "px";
+        el.style.top = clientY - offsetY + "px";
+      }
+
+      function endDrag() {
+        document.removeEventListener("mousemove", onDrag);
+        document.removeEventListener("mouseup", endDrag);
+        document.removeEventListener("touchmove", onDrag);
+        document.removeEventListener("touchend", endDrag);
+      }
+    }
+
+    function renderInputPanel() {
+      inputPanel.innerHTML = "";
       boxes.forEach(box => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'input-wrapper';
-
-        const label = document.createElement('label');
-        label.textContent = box.name;
-        label.htmlFor = `input-${box.name}`;
-
-        const textarea = document.createElement('textarea');
-        textarea.id = `input-${box.name}`;
-        textarea.dataset.name = box.name;
-        textarea.value = box.text || '';
-        textarea.placeholder = `Text for "${box.name}"`;
-
-        textarea.style.fontWeight = box.styles?.bold ? "700" : "400";
-        textarea.style.fontStyle = box.styles?.italic ? "italic" : "normal";
-        textarea.style.textAlign = box.styles?.align || "left";
-        textarea.style.fontSize = (box.styles?.fontSize || 18) + "px";
-
-        textarea.addEventListener('input', () => {
-          box.text = textarea.value;
-          drawCanvas();
-        });
-
-        wrapper.appendChild(label);
-        wrapper.appendChild(textarea);
-
-        const ctrl = document.createElement('div');
-        ctrl.className = 'font-style-controls';
-
-        const boldLabel = document.createElement('label');
-        const boldCheckbox = document.createElement('input');
-        boldCheckbox.type = 'checkbox';
-        boldCheckbox.checked = box.styles?.bold;
-        boldCheckbox.addEventListener('change', () => {
-          box.styles.bold = boldCheckbox.checked;
-          textarea.style.fontWeight = boldCheckbox.checked ? "700" : "400";
-          drawCanvas();
-        });
-        boldLabel.appendChild(boldCheckbox);
-        boldLabel.appendChild(document.createTextNode('Bold'));
-        ctrl.appendChild(boldLabel);
-
-        const italicLabel = document.createElement('label');
-        const italicCheckbox = document.createElement('input');
-        italicCheckbox.type = 'checkbox';
-        italicCheckbox.checked = box.styles?.italic;
-        italicCheckbox.addEventListener('change', () => {
-          box.styles.italic = italicCheckbox.checked;
-          textarea.style.fontStyle = italicCheckbox.checked ? "italic" : "normal";
-          drawCanvas();
-        });
-        italicLabel.appendChild(italicCheckbox);
-        italicLabel.appendChild(document.createTextNode('Italic'));
-        ctrl.appendChild(italicLabel);
-
-        const sizeLabel = document.createElement('label');
-        sizeLabel.textContent = 'Size: ';
-        const sizeSelect = document.createElement('select');
-        [12, 14, 16, 18, 20, 24].forEach(sz => {
-          const opt = document.createElement('option');
-          opt.value = sz;
-          opt.textContent = sz + 'px';
-          sizeSelect.appendChild(opt);
-        });
-        sizeSelect.value = box.styles?.fontSize || 18;
-        sizeSelect.addEventListener('change', () => {
-          box.styles.fontSize = +sizeSelect.value;
-          textarea.style.fontSize = sizeSelect.value + 'px';
-          drawCanvas();
-        });
-        sizeLabel.appendChild(sizeSelect);
-        ctrl.appendChild(sizeLabel);
-
-        const alignLabel = document.createElement('label');
-        alignLabel.textContent = 'Align: ';
-        const alignSelect = document.createElement('select');
-        ['left', 'center', 'right'].forEach(a => {
-          const opt = document.createElement('option');
-          opt.value = a;
-          opt.textContent = a.charAt(0).toUpperCase() + a.slice(1);
-          alignSelect.appendChild(opt);
-        });
-        alignSelect.value = box.styles?.align || "left";
-        alignSelect.addEventListener('change', () => {
-          box.styles.align = alignSelect.value;
-          textarea.style.textAlign = alignSelect.value;
-          drawCanvas();
-        });
-        alignLabel.appendChild(alignSelect);
-        ctrl.appendChild(alignLabel);
-
-        wrapper.appendChild(ctrl);
-        inputFields.appendChild(wrapper);
+        const name = box.getAttribute("data-name");
+        const label = document.createElement("label");
+        label.textContent = name;
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = `input-${name}`;
+        inputPanel.appendChild(label);
+        inputPanel.appendChild(input);
       });
+    }
+
+    function generateText() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      boxes.forEach(box => {
+        const name = box.getAttribute("data-name");
+        const input = document.getElementById(`input-${name}`);
+        const x = parseInt(box.style.left);
+        const y = parseInt(box.style.top) + 20;
+        ctx.font = "16px Arial";
+        ctx.fillStyle = "black";
+        ctx.fillText(input.value, x, y);
+      });
+    }
+
+    function downloadImage() {
+      const link = document.createElement("a");
+      link.download = "template_output.png";
+      link.href = canvas.toDataURL();
+      link.click();
     }
 
     function saveTemplate() {
-      const tplName = templateNameInput.value.trim();
-      if (!tplName) {
-        showToast("Enter template name");
-        return;
-      }
-      if (!image.src) {
-        showToast("Upload image first");
-        return;
-      }
-      if (Object.keys(localStorage).some(k => k.toLowerCase() === ('template_' + tplName).toLowerCase())) {
-        showToast("Template name must be unique");
-        return;
-      }
-      boxes.forEach(box => {
-        const textarea = inputFields.querySelector(`textarea[data-name="${box.name}"]`);
-        if (textarea) box.text = textarea.value;
-      });
-      localStorage.setItem('template_' + tplName, JSON.stringify({
-        imageSrc: image.src,
-        boxes: boxes
-      }));
-      showToast(`Template "${tplName}" saved`);
-      loadTemplates();
+      const name = prompt("Enter template name:");
+      if (!name) return;
+      const data = {
+        image: currentImage,
+        boxes: boxes.map(b => ({
+          name: b.getAttribute("data-name"),
+          left: b.style.left,
+          top: b.style.top,
+          width: b.style.width,
+          height: b.style.height,
+        }))
+      };
+      localStorage.setItem(name, JSON.stringify(data));
+      loadTemplateList();
     }
 
-    function loadTemplates() {
-      if (templateList.style.display === "block") {
-        templateList.style.display = "none";
-        return;
-      }
-      templateList.style.display = "block";
-      templateList.innerHTML = '';
-      const keys = Object.keys(localStorage).filter(k => k.startsWith('template_'));
-      if (!keys.length) {
-        templateList.textContent = "No saved templates.";
-        return;
-      }
-      keys.forEach(key => {
-        const tplName = key.slice(9);
-        const div = document.createElement('div');
-        div.className = 'template-item';
-        const span = document.createElement('span');
-        span.textContent = tplName;
-        const loadBtn = document.createElement('button');
-        loadBtn.className = 'loadBtn';
-        loadBtn.textContent = 'Load';
-        loadBtn.onclick = () => {
-          const tpl = JSON.parse(localStorage.getItem(key));
-          if (!tpl) {
-            showToast("Failed to load");
-            return;
-          }
-          image.src = tpl.imageSrc;
-          image.onload = () => {
-            canvas.width = image.width;
-            canvas.height = image.height;
-            boxes = (tpl.boxes || []).map(b => Object.assign({}, b));
-            updateInputFields();
-            createBoxOverlays();
-            drawCanvas();
-            templateNameInput.value = tplName;
-          };
-          templateList.style.display = "none";
-          showToast(`Template "${tplName}" loaded`);
-        };
-        const delBtn = document.createElement('button');
-        delBtn.className = 'delBtn';
-        delBtn.textContent = 'Delete';
-        delBtn.onclick = () => {
-          if (confirm(`Delete template "${tplName}"?`)) {
+    function loadTemplateList() {
+      templateList.innerHTML = "";
+      Object.keys(localStorage).forEach(key => {
+        const div = document.createElement("div");
+        div.className = "template-item";
+        div.innerHTML = `<span>${key}</span>`;
+        const loadBtn = document.createElement("button");
+        loadBtn.textContent = "Load";
+        loadBtn.onclick = () => loadTemplate(key);
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "🗑";
+        deleteBtn.onclick = () => {
+          if (confirm(`Delete template '${key}'?`)) {
             localStorage.removeItem(key);
-            loadTemplates();
-            showToast(`Template "${tplName}" deleted`);
+            loadTemplateList();
           }
         };
-        div.appendChild(span);
         div.appendChild(loadBtn);
-        div.appendChild(delBtn);
+        div.appendChild(deleteBtn);
         templateList.appendChild(div);
       });
     }
 
-    function addBox() {
-      const name = boxNameInput.value.trim();
-      if (!name) {
-        showToast('Enter a box name');
-        return;
-      }
-      if (boxes.some(b => b.name.toLowerCase() === name.toLowerCase())) {
-        showToast('Box name already exists');
-        return;
-      }
-      if (!image.src) {
-        showToast('Upload image first');
-        return;
-      }
-      boxes.push({
-        name,
-        left: 70,
-        top: 70,
-        width: 150,
-        height: 50,
-        text: '',
-        styles: { bold: false, italic: false, align: 'left', fontSize: 18 }
-      });
-      boxNameInput.value = '';
-      updateInputFields();
-      createBoxOverlays();
-      drawCanvas();
-      showToast(`Box "${name}" added`);
-    }
-
-    downloadBtn.addEventListener('click', () => {
-      if (!image.src) {
-        showToast("No canvas to export");
-        return;
-      }
-      canvas.toBlob(blob => {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'template-output.jpg';
-        a.click();
-        URL.revokeObjectURL(a.href);
-      }, 'image/jpeg', 0.97);
-    });
-
-    imageUpload.addEventListener('change', () => {
-      const file = imageUpload.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => {
-        image.src = e.target.result;
-        image.onload = () => {
-          canvas.width = image.width;
-          canvas.height = image.height;
-          boxes = [];
-          inputFields.innerHTML = '';
-          createBoxOverlays();
-          drawCanvas();
-        };
+    function loadTemplate(name) {
+      const data = JSON.parse(localStorage.getItem(name));
+      if (!data) return;
+      img.onload = function () {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
       };
-      reader.readAsDataURL(file);
-    });
-
-    addBoxBtn.addEventListener('click', addBox);
-    saveTemplateBtn.addEventListener('click', saveTemplate);
-    loadTemplatesBtn.addEventListener('click', loadTemplates);
-
-    window.addEventListener('load', () => {
-      loadTemplates();
-    });
-  })();
+      img.src = data.image;
+      currentImage = data.image;
+      boxes.forEach(b => b.remove());
+      boxes = [];
+      data.boxes.forEach(b => {
+        const div = document.createElement("div");
+        div.className = "box";
+        div.style.left = b.left;
+        div.style.top = b.top;
+        div.style.width = b.width;
+        div.style.height = b.height;
+        div.setAttribute("data-name", b.name);
+        div.innerHTML = `<span class='drag-symbol'>+</span>`;
+        makeDraggable(div);
+        container.appendChild(div);
+        boxes.push(div);
+      });
+      renderInputPanel();
+    }
   </script>
 </body>
 </html>
