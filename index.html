@@ -239,12 +239,12 @@
 </head>
 <body>
   <div class="container" role="main" aria-label="Template Box Editor">
-    <h2>Template Box Editor (No Rotation)</h2>
+    <h2>Template Box Editor</h2>
     <div class="controls" role="region" aria-label="Control Panel">
-      <input type="file" accept="image/*" id="imageUpload" aria-label="Upload Image"/>
-      <input type="text" placeholder="New Box Name" id="boxName" aria-label="Box Name Input" autocomplete="off"/>
+      <input type="file" accept="image/*" id="imageUpload" aria-label="Upload Image" />
+      <input type="text" placeholder="New Box Name" id="boxName" aria-label="Box Name Input" autocomplete="off" />
       <button id="addBoxBtn" aria-label="Add Box Button" title="Add Box">Add Box</button>
-      <input type="text" placeholder="Template Name" id="templateName" aria-label="Template Name Input" autocomplete="off"/>
+      <input type="text" placeholder="Template Name" id="templateName" aria-label="Template Name Input" autocomplete="off" />
       <button id="saveTemplateBtn" aria-label="Save Template Button" title="Save Template">Save Template</button>
       <button id="loadTemplatesBtn" aria-label="Load Templates Button" title="Load Templates">Load Templates</button>
     </div>
@@ -271,6 +271,7 @@
     const downloadBtn = document.getElementById('downloadBtn');
     const canvas = document.getElementById('templateCanvas');
     const ctx = canvas.getContext('2d');
+
     let image = new Image();
     let boxes = [];
     let selectedBox = null;
@@ -282,10 +283,7 @@
       t.textContent = msg;
       document.body.appendChild(t);
       setTimeout(() => { t.style.opacity = '1'; }, 10);
-      setTimeout(() => {
-        t.style.opacity = '0';
-        setTimeout(() => t.remove(), 300);
-      }, 1600);
+      setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 1600);
     }
 
     function drawCanvas() {
@@ -296,7 +294,7 @@
       boxes.forEach(box => {
         ctx.save();
 
-        // Move context origin to box top-left corner
+        // Translate origin to box top-left
         ctx.translate(box.left, box.top);
 
         ctx.beginPath();
@@ -329,6 +327,7 @@
 
           ctx.fillText(line, x, y, box.width - 2 * padding);
         }
+
         ctx.restore();
       });
     }
@@ -441,7 +440,6 @@
         textarea.value = box.text || '';
         textarea.placeholder = `Text for "${box.name}"`;
 
-        // Style controls including font size
         textarea.style.fontWeight = box.styles?.bold ? "700" : "400";
         textarea.style.fontStyle = box.styles?.italic ? "italic" : "normal";
         textarea.style.textAlign = box.styles?.align || "left";
@@ -487,7 +485,7 @@
         const sizeLabel = document.createElement('label');
         sizeLabel.textContent = 'Size: ';
         const sizeSelect = document.createElement('select');
-        [12,14,16,18,20,24].forEach(sz=>{
+        [12, 14, 16, 18, 20, 24].forEach(sz => {
           const opt = document.createElement('option');
           opt.value = sz;
           opt.textContent = sz + 'px';
@@ -505,7 +503,7 @@
         const alignLabel = document.createElement('label');
         alignLabel.textContent = 'Align: ';
         const alignSelect = document.createElement('select');
-        ['left','center','right'].forEach(a=>{
+        ['left', 'center', 'right'].forEach(a => {
           const opt = document.createElement('option');
           opt.value = a;
           opt.textContent = a.charAt(0).toUpperCase() + a.slice(1);
