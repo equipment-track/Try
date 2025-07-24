@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Template Box Editor</title>
   <style>
     :root {
@@ -250,7 +250,7 @@
 <body>
   <div class="container" role="main" aria-label="Template Box Editor">
     <h2>Template Box Editor</h2>
-    <div class="controls" role="region">
+    <div class="controls" role="region" aria-label="Control Panel">
       <input type="file" accept="image/*" id="imageUpload" aria-label="Upload Image"/>
       <input type="text" placeholder="New Box Name" id="boxName" aria-label="Box Name Input" autocomplete="off"/>
       <button id="addBoxBtn" aria-label="Add Box Button" title="Add Box">Add Box</button>
@@ -263,7 +263,6 @@
       <canvas id="templateCanvas"></canvas>
     </div>
     <div class="buttons-row" role="region" aria-label="Action Buttons">
-      <button class="btn-main" id="generateTextBtn" aria-label="Generate Text Button" title="Generate Text">Generate Text</button>
       <button class="btn-main" id="downloadBtn" aria-label="Download Image Button" title="Download Image">Download</button>
     </div>
     <div class="template-list" id="templateList" aria-label="Saved Templates List"></div>
@@ -279,7 +278,6 @@
       const loadTemplatesBtn = document.getElementById('loadTemplatesBtn');
       const inputFields = document.getElementById('inputFields');
       const templateList = document.getElementById('templateList');
-      const generateTextBtn = document.getElementById('generateTextBtn');
       const downloadBtn = document.getElementById('downloadBtn');
       const canvas = document.getElementById('templateCanvas');
       const ctx = canvas.getContext('2d');
@@ -288,27 +286,33 @@
       let selectedBox = null;
 
       function showToast(msg) {
-        if(document.getElementById('toastMessage')) return;
+        if (document.getElementById('toastMessage')) return;
         const t = document.createElement('div');
         t.id = 'toastMessage';
         t.textContent = msg;
         document.body.appendChild(t);
-        setTimeout(()=>{ t.style.opacity = '1'; },10);
-        setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),300); },1600);
+        setTimeout(() => { t.style.opacity = '1'; }, 10);
+        setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 1600);
       }
 
       function drawCanvas() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (!image.src) return;
         ctx.drawImage(image, 0, 0);
+
         boxes.forEach(box => {
           ctx.save();
-          ctx.translate(box.left + box.width / 2, box.top + box.height / 2);
+          // Translate to box position (top-left)
+          ctx.translate(box.left, box.top);
+          // Move to center of box for rotation
+          ctx.translate(box.width / 2, box.height / 2);
           ctx.rotate((box.rotation || 0) * Math.PI / 180);
+          // Shift back to top-left corner of box rectangle
+          ctx.translate(-box.width / 2, -box.height / 2);
 
-          // Clipping inside the rotated box
+          // Clip to box
           ctx.beginPath();
-          ctx.rect(-box.width / 2, -box.height / 2, box.width, box.height);
+          ctx.rect(0, 0, box.width, box.height);
           ctx.clip();
 
           ctx.fillStyle = '#222';
@@ -317,38 +321,38 @@
           if (box.styles?.bold) fStyle += 'bold ';
           ctx.font = `${fStyle}18px "Segoe UI", Arial, sans-serif`;
 
-          let align = box.styles?.align || "left";
+          const align = box.styles?.align || 'left';
           ctx.textAlign = align;
           ctx.textBaseline = 'top';
+
           const padding = 8;
           const lineHeight = 22;
-          const lines = (box.text || "").split('\n');
-          for (let i = 0; i < lines.length; i++) {
+          const lines = (box.text || '').split('\n');
+          for(let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            let y = -box.height / 2 + padding + i * lineHeight;
-            // Stop drawing if bottom of the line is below box limit
-            if (y + lineHeight > box.height / 2 - padding) break;
+            const y = padding + i * lineHeight;
+            if(y + lineHeight > box.height - padding) break;
 
-            let x;
-            if (align === "left") x = -box.width / 2 + padding;
-            else if (align === "center") x = 0;
-            else if (align === "right") x = box.width / 2 - padding;
+            let x = padding;
+            if(align === 'center') x = box.width / 2;
+            else if(align === 'right') x = box.width - padding;
 
             ctx.fillText(line, x, y, box.width - 2 * padding);
           }
+
           ctx.restore();
         });
       }
 
       function createBoxOverlays() {
-        document.querySelectorAll('.box-overlay').forEach(b => b.remove());
+        document.querySelectorAll('.box-overlay').forEach(el => el.remove());
         boxes.forEach(box => {
           const el = document.createElement('div');
           el.className = 'box-overlay' + (selectedBox && box.name === selectedBox.name ? ' selected' : '');
-          el.style.left = box.left + 'px';
-          el.style.top = box.top + 'px';
-          el.style.width = box.width + 'px';
-          el.style.height = box.height + 'px';
+          el.style.left = box.left + "px";
+          el.style.top = box.top + "px";
+          el.style.width = box.width + "px";
+          el.style.height = box.height + "px";
           el.style.transform = `rotate(${box.rotation || 0}deg)`;
           el.dataset.name = box.name;
           el.tabIndex = 0;
@@ -383,12 +387,13 @@
           el.style.zIndex = 30;
         });
         el.addEventListener('pointermove', e => {
-          if(!dragging) return;
-          let dx = e.clientX - startX, dy = e.clientY - startY;
+          if (!dragging) return;
+          let dx = e.clientX - startX;
+          let dy = e.clientY - startY;
           box.left = Math.min(Math.max(0, startL + dx), canvas.width - box.width);
           box.top = Math.min(Math.max(0, startT + dy), canvas.height - box.height);
-          el.style.left = box.left + 'px';
-          el.style.top = box.top + 'px';
+          el.style.left = box.left + "px";
+          el.style.top = box.top + "px";
           drawCanvas();
         });
         el.addEventListener('pointerup', () => {
@@ -413,13 +418,13 @@
           grip.setPointerCapture(e.pointerId);
         });
         grip.addEventListener('pointermove', e => {
-          if(!resizing) return;
+          if (!resizing) return;
           let dw = e.clientX - startX;
           let dh = e.clientY - startY;
           box.width = Math.min(Math.max(40, origW + dw), canvas.width - box.left);
           box.height = Math.min(Math.max(20, origH + dh), canvas.height - box.top);
-          el.style.width = box.width + 'px';
-          el.style.height = box.height + 'px';
+          el.style.width = box.width + "px";
+          el.style.height = box.height + "px";
           drawCanvas();
         });
         grip.addEventListener('pointerup', () => {
@@ -436,7 +441,7 @@
         grip.addEventListener('pointerdown', e => {
           e.preventDefault();
           rotating = true;
-          center = { x: el.offsetLeft + el.offsetWidth/2, y: el.offsetTop + el.offsetHeight/2 };
+          center = { x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight / 2 };
           startAngle = Math.atan2(e.clientY - center.y, e.clientX - center.x);
           startRot = box.rotation || 0;
           grip.setPointerCapture(e.pointerId);
@@ -444,8 +449,8 @@
         grip.addEventListener('pointermove', e => {
           if(!rotating) return;
           const theta = Math.atan2(e.clientY - center.y, e.clientX - center.x);
-          let deg = startRot + (theta - startAngle)*180/Math.PI;
-          box.rotation = Math.round((deg+360)%360);
+          let deg = startRot + (theta - startAngle) * 180 / Math.PI;
+          box.rotation = Math.round((deg + 360) % 360);
           el.style.transform = `rotate(${box.rotation}deg)`;
           drawCanvas();
         });
@@ -479,8 +484,10 @@
           });
           wrapper.appendChild(label);
           wrapper.appendChild(textarea);
+
           const ctrl = document.createElement('div');
           ctrl.className = 'font-style-controls';
+
           const boldLabel = document.createElement('label');
           const boldCheckbox = document.createElement('input');
           boldCheckbox.type = 'checkbox';
@@ -493,6 +500,7 @@
           boldLabel.appendChild(boldCheckbox);
           boldLabel.appendChild(document.createTextNode('Bold'));
           ctrl.appendChild(boldLabel);
+
           const italicLabel = document.createElement('label');
           const italicCheckbox = document.createElement('input');
           italicCheckbox.type = 'checkbox';
@@ -505,6 +513,7 @@
           italicLabel.appendChild(italicCheckbox);
           italicLabel.appendChild(document.createTextNode('Italic'));
           ctrl.appendChild(italicLabel);
+
           const alignLabel = document.createElement('label');
           alignLabel.textContent = 'Align: ';
           const alignSelect = document.createElement('select');
@@ -522,6 +531,7 @@
           });
           alignLabel.appendChild(alignSelect);
           ctrl.appendChild(alignLabel);
+
           wrapper.appendChild(ctrl);
           inputFields.appendChild(wrapper);
         });
@@ -560,7 +570,7 @@
         }
         templateList.style.display = "block";
         templateList.innerHTML = '';
-        let keys = Object.keys(localStorage).filter(k => k.startsWith('template_'));
+        const keys = Object.keys(localStorage).filter(k => k.startsWith('template_'));
         if (!keys.length) {
           templateList.textContent = "No saved templates.";
           return;
@@ -641,16 +651,7 @@
         showToast(`Box "${name}" added`);
       }
 
-      function generateText() {
-        boxes.forEach(box => {
-          const txtarea = inputFields.querySelector(`textarea[data-name="${box.name}"]`);
-          if (txtarea) box.text = txtarea.value;
-        });
-        drawCanvas();
-        showToast('Text generated');
-      }
-
-      function download() {
+      downloadBtn.addEventListener('click', () => {
         if (!image.src) {
           showToast("No canvas to export");
           return;
@@ -662,7 +663,7 @@
           a.click();
           URL.revokeObjectURL(a.href);
         }, 'image/jpeg', 0.97);
-      }
+      });
 
       imageUpload.addEventListener('change', () => {
         const file = imageUpload.files[0];
@@ -685,8 +686,6 @@
       addBoxBtn.addEventListener('click', addBox);
       saveTemplateBtn.addEventListener('click', saveTemplate);
       loadTemplatesBtn.addEventListener('click', loadTemplates);
-      generateTextBtn.addEventListener('click', generateText);
-      downloadBtn.addEventListener('click', download);
 
       window.addEventListener('load', () => {
         loadTemplates();
