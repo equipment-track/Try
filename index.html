@@ -85,7 +85,7 @@
     user-drag: none;
   }
 
-  /* Text box wrapper */
+  /* Textbox wrapper */
   .textbox-wrapper {
     position: absolute;
     display: inline-block;
@@ -222,12 +222,13 @@
 
   #clearAllBtn {
     background-color: #d93025;
-    color: #fff;
+    color: white;
     border: none;
     box-shadow: none;
   }
   #clearAllBtn:hover, #clearAllBtn:focus-visible {
     background-color: #b3271b;
+    box-shadow: none;
   }
 
   /* Controls container */
@@ -237,6 +238,7 @@
     flex-wrap: wrap;
     gap: 12px;
     align-items: center;
+    justify-content: flex-start;
   }
   #controls button,
   #controls input,
@@ -295,6 +297,7 @@
     align-items: center;
     padding: 6px 8px;
     border-radius: 5px;
+    cursor: pointer;
     transition: background-color 0.2s ease;
   }
   #savedTemplatesList li:hover {
@@ -431,66 +434,29 @@
     margin-left: 12px;
     box-shadow: none;
   }
-  /* Dark mode toggle switch */
-  .switch {
-    position: relative;
-    display: inline-block;
-    width: 48px;
-    height: 28px;
-  }
-  .switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-  .slider {
-    position: absolute;
-    cursor: pointer;
-    background-color: #ccc;
-    border-radius: 14px;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    transition: 0.3s ease;
-  }
-  .slider:before {
-    position: absolute;
-    content: "";
-    height: 22px;
-    width: 22px;
-    left: 3px;
-    bottom: 3px;
-    background-color: white;
-    border-radius: 50%;
-    transition: 0.3s ease;
-  }
-  input:checked + .slider {
-    background-color: var(--primary-color);
-  }
-  input:checked + .slider:before {
-    transform: translateX(20px);
-  }
+
 </style>
 </head>
 <body>
 
-<h2>Image Editor with Dark Mode & Clean UI</h2>
+<h2>
+  Image Editor
+  <label style="display:inline-flex; align-items:center; cursor:pointer;">
+    <input type="checkbox" id="darkModeToggle" aria-label="Toggle Dark Mode" style="margin-right:8px" />
+    Dark Mode
+  </label>
+</h2>
 
 <div id="topButtons">
   <button id="toggleSavedTemplatesBtn" style="display:none;">Show Saved Templates</button>
   <button id="clearAllBtn" style="display:none;">New Project</button>
-  <label class="switch" title="Toggle Dark Mode">
-    <input type="checkbox" id="darkModeToggle" aria-label="Toggle Dark Mode" />
-    <span class="slider"></span>
-  </label>
 </div>
 
-<div id="savedTemplatesContainer" aria-live="polite">
+<div id="savedTemplatesContainer" aria-live="polite" aria-label="Saved Templates">
   <ul id="savedTemplatesList"></ul>
 </div>
 
-<div id="controls" style="display:none;">
+<div id="controls" style="display:none;" aria-label="Editor Controls">
   <button id="addTextBoxBtn" aria-label="Add Text Box">Add Text Box</button>
   <button id="downloadBtn" disabled aria-label="Download Image">Download</button>
   <button id="shareBtn" disabled aria-label="Share Image as JPEG">Share JPEG</button>
@@ -500,8 +466,8 @@
 
 <!-- Floating style toolbar -->
 <div id="styleControls" aria-label="Text style controls" role="toolbar" aria-hidden="true">
-  <button id="boldBtn" title="Toggle Bold" aria-pressed="false"><b>B</b></button>
-  <button id="italicBtn" title="Toggle Italic" aria-pressed="false"><i>I</i></button>
+  <button id="boldBtn" title="Toggle Bold" aria-pressed="false" type="button"><b>B</b></button>
+  <button id="italicBtn" title="Toggle Italic" aria-pressed="false" type="button"><i>I</i></button>
   <select id="fontSizeSelect" title="Select Text Size" aria-label="Text size">
     <option value="12px">12</option>
     <option value="14px">14</option>
@@ -532,9 +498,9 @@
 <!-- Download Format Pop-up -->
 <div id="downloadFormatPopup" role="dialog" aria-modal="true" aria-labelledby="downloadPopupLabel" tabindex="-1">
   <strong id="downloadPopupLabel">Select Export Format:</strong>
-  <label><input type="radio" name="exportFormat" value="png" checked> PNG</label>
-  <label><input type="radio" name="exportFormat" value="jpeg"> JPEG</label>
-  <label><input type="radio" name="exportFormat" value="pdf"> PDF (print/save popup)</label>
+  <label><input type="radio" name="exportFormat" value="png" checked /> PNG</label>
+  <label><input type="radio" name="exportFormat" value="jpeg" /> JPEG</label>
+  <label><input type="radio" name="exportFormat" value="pdf" /> PDF (print/save popup)</label>
   <div style="margin-top:16px; text-align:right;">
     <button id="confirmDownloadBtn">Export</button>
     <button id="cancelDownloadPopup">Cancel</button>
@@ -599,7 +565,7 @@
     }
   });
 
-  // Template Management
+  // Template Management functions
   function getSavedTemplates() {
     const data = localStorage.getItem('imageEditorTemplates');
     return data ? JSON.parse(data) : {};
@@ -624,12 +590,21 @@
       span.title = "Click to load template";
       span.style.flexGrow = '1';
       span.style.cursor = 'pointer';
+      span.tabIndex = 0;
+      span.setAttribute("role", "button");
       span.addEventListener('click', () => {
         restoreState(templates[name]);
+      });
+      span.addEventListener('keydown', e => {
+        if(e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          restoreState(templates[name]);
+        }
       });
       li.appendChild(span);
       const delBtn = document.createElement('button');
       delBtn.textContent = 'Delete';
+      delBtn.title = 'Delete this template';
       delBtn.addEventListener('click', () => {
         if (confirm(`Delete template "${name}"?`)) {
           const ts = getSavedTemplates();
@@ -779,6 +754,7 @@
       });
     };
   }
+
   // Lock toggle function
   function toggleLockTextBox(wrapper, lockBtn, textarea, dragHandle) {
     if (wrapper.classList.contains('locked')) {
@@ -830,7 +806,8 @@
     let posTop = top - toolbarHeight - 8;
     let posLeft = left;
     if (posTop < container.scrollTop) posTop = top + focusedTextarea.offsetHeight + 8;
-    if (posLeft + toolbarWidth > container.scrollLeft + container.clientWidth) posLeft = container.scrollLeft + container.clientWidth - toolbarWidth - 8;
+    if (posLeft + toolbarWidth > container.scrollLeft + container.clientWidth)
+      posLeft = container.scrollLeft + container.clientWidth - toolbarWidth - 8;
     if (posLeft < container.scrollLeft) posLeft = container.scrollLeft + 8;
     styleControls.style.top = posTop + 'px';
     styleControls.style.left = posLeft + 'px';
@@ -897,7 +874,7 @@
     }, 0);
   });
 
-  // Dragging implementation modified to respect locked state
+  // Dragging implementation
   function getPointerPos(e) {
     if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
     if (e.clientX !== undefined && e.clientY !== undefined) return { x: e.clientX, y: e.clientY };
@@ -997,7 +974,6 @@
       return;
     }
     downloadFormatPopup.style.display = 'block';
-    downloadFormatPopup.setAttribute('tabindex', '-1');
     downloadFormatPopup.focus();
   });
   cancelDownloadPopup.addEventListener('click', () => {
@@ -1028,28 +1004,22 @@
 
     zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
       const textarea = wrapper.querySelector('textarea');
+      if (wrapper.classList.contains('locked')) return;
       const style = window.getComputedStyle(textarea);
-      if (wrapper.classList.contains('locked')) return; // skip locked boxes text drawing?
-
       const fontSize = parseInt(style.fontSize);
       const fontFamily = style.fontFamily;
       const fontWeight = style.fontWeight;
       const fontStyle = style.fontStyle;
       const color = style.color || '#000';
-
       const wrapperLeft = parseFloat(wrapper.style.left || 0);
       const wrapperTop = parseFloat(wrapper.style.top || 0);
-
       const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
       const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
-
       const x = offsetX * scaleX;
       const y = offsetY * scaleY;
-
       ctx.fillStyle = color;
       ctx.font = `${fontStyle} ${fontWeight} ${fontSize * scaleX}px ${fontFamily}`;
       ctx.textBaseline = 'top';
-
       const lines = textarea.value.split('\n');
       const lineHeight = fontSize * 1.2 * scaleY;
       lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
@@ -1115,13 +1085,15 @@
         </head>
         <body>
           <img src="${dataUrl}" alt="Image to Export as PDF" />
-          <script>window.onload=()=>{window.focus();window.print();};
+          <script>window.onload=()=>{window.focus();window.print();}<\/script>
+        </body>
+      </html>`);
     printWindow.document.close();
   }
 
   // Share JPEG button, using Web Share API with fallback
   shareBtn.addEventListener('click', () => {
-    if(!imageElement) {
+    if (!imageElement) {
       alert("Please upload or load a template first.");
       return;
     }
@@ -1136,15 +1108,15 @@
     const scaleY = canvas.height / imageRect.height;
     zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
       const textarea = wrapper.querySelector('textarea');
-      if(wrapper.classList.contains('locked')) return; // skip locked boxes' text
+      if (wrapper.classList.contains('locked')) return;
       const style = window.getComputedStyle(textarea);
       const fontSize = parseInt(style.fontSize);
       const fontFamily = style.fontFamily;
       const fontWeight = style.fontWeight;
       const fontStyle = style.fontStyle;
       const color = style.color || '#000';
-      const wrapperLeft = parseFloat(wrapper.style.left||0);
-      const wrapperTop = parseFloat(wrapper.style.top||0);
+      const wrapperLeft = parseFloat(wrapper.style.left || 0);
+      const wrapperTop = parseFloat(wrapper.style.top || 0);
       const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
       const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
       const x = offsetX * scaleX;
@@ -1154,11 +1126,11 @@
       ctx.textBaseline = 'top';
       const lines = textarea.value.split('\n');
       const lineHeight = fontSize * 1.2 * scaleY;
-      lines.forEach((line,i) => ctx.fillText(line, x, y + i * lineHeight));
+      lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
     });
     canvas.toBlob(blob => {
-      if (navigator.canShare && navigator.canShare({ files: [new File([blob], 'template.jpeg', { type: 'image/jpeg' })]})) {
-        const file = new File([blob], 'template.jpeg', {type: 'image/jpeg'});
+      if (navigator.canShare && navigator.canShare({ files: [new File([blob], 'template.jpeg', { type: 'image/jpeg' })] })) {
+        const file = new File([blob], 'template.jpeg', { type: 'image/jpeg' });
         navigator.share({
           files: [file],
           title: 'Shared Image Template',
@@ -1176,7 +1148,7 @@
     }, 'image/jpeg', 0.95);
   });
 
-  // rgb to hex helper
+  // RGB to hex helper
   function rgbToHex(rgb) {
     if (!rgb) return null;
     const res = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
@@ -1186,7 +1158,7 @@
 
   // Clear all button
   clearAllBtn.addEventListener('click', () => {
-    if(confirm('Clear all text boxes and remove image?')) {
+    if (confirm('Clear all text boxes and remove image?')) {
       zoomableContent.innerHTML = '';
       imageElement = null;
       controls.style.display = 'none';
@@ -1201,71 +1173,59 @@
     }
   });
 
-  // Duplication function reused for completeness
+  // Duplicate text box function
   function duplicateTextBox(wrapper) {
     const textarea = wrapper.querySelector('textarea');
     const newWrapper = document.createElement('div');
     newWrapper.className = 'textbox-wrapper';
-
     newWrapper.style.top = (parseFloat(wrapper.style.top) + 20) + 'px';
     newWrapper.style.left = (parseFloat(wrapper.style.left) + 20) + 'px';
-
     const newTextarea = document.createElement('textarea');
-    ['fontWeight', 'fontStyle', 'fontSize', 'fontFamily', 'color'].forEach(styleProp => {
-      newTextarea.style[styleProp] = textarea.style[styleProp];
-    });
+    ['fontWeight','fontStyle','fontSize','fontFamily','color'].forEach(k => newTextarea.style[k] = textarea.style[k]);
     newTextarea.value = textarea.value;
     newTextarea.style.width = textarea.style.width;
     newTextarea.style.height = textarea.style.height;
-
     newWrapper.appendChild(newTextarea);
-
     const dragHandle = document.createElement('div');
     dragHandle.className = 'drag-handle';
     dragHandle.textContent = '●';
     newWrapper.appendChild(dragHandle);
-
     const btnContainer = document.createElement('div');
     btnContainer.className = 'textbox-buttons';
-
     const dupBtn = document.createElement('button');
     dupBtn.title = 'Duplicate';
     dupBtn.textContent = '⎘';
     dupBtn.addEventListener('click', () => duplicateTextBox(newWrapper));
     btnContainer.appendChild(dupBtn);
-
     const lockBtn = document.createElement('button');
     lockBtn.title = 'Lock Text Box';
     lockBtn.textContent = '🔓';
     lockBtn.addEventListener('click', () => toggleLockTextBox(newWrapper, lockBtn, newTextarea, dragHandle));
     btnContainer.appendChild(lockBtn);
-
     const delBtn = document.createElement('button');
     delBtn.title = 'Delete';
     delBtn.textContent = '✕';
     delBtn.addEventListener('click', () => {
-      if (confirm("Delete this text box?")) {
+      if(confirm("Delete this text box?")) {
         newWrapper.remove();
         hideStyleControls();
       }
     });
     btnContainer.appendChild(delBtn);
-
     newWrapper.appendChild(btnContainer);
-
     zoomableContent.appendChild(newWrapper);
     makeDraggable(newWrapper, dragHandle);
     attachTextboxListeners(newTextarea);
   }
 
-  // Initialize saved templates list and update UI at start
+  // Initialization
   renderSavedTemplatesList();
   updateSaveButtonState();
   updateDownloadShareButtonState();
-
 </script>
 
-<p><small>Drag the <b>blue dot</b> to move text boxes. Resize them using the textarea corner handle. Lock boxes to prevent editing or moving. Click inside a box to edit text and see style controls above it (bold, italic, font size, font family—including cursive fonts—and color). Use your device’s native zoom. Text editing works normally.</small></p>
+<!-- Optional Google Fonts for cursive -->
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script&family=Pacifico&display=swap" rel="stylesheet" />
 
 </body>
 </html>
