@@ -8,7 +8,6 @@
   body {
     font-family: Arial, sans-serif;
     padding: 10px;
-    /* Allow native pinch zoom */
     -webkit-user-select: text; /* Allow text selection */
     -webkit-touch-callout: default;
   }
@@ -16,15 +15,16 @@
     position: relative;
     border: 1px solid #ccc;
     display: inline-block;
-    overflow: hidden;
+    overflow: auto; /* Changed from hidden to auto for scrolling */
     background: #f0f0f0;
-    width: 600px;
-    height: 400px;
+    width: 100%;
+    max-width: 900px; /* Optional max width */
+    max-height: 80vh; /* Limit height to viewport with scroll if image larger */
+    box-sizing: border-box;
   }
   #zoomable-content {
     position: relative;
     user-select: none;
-    /* No custom zoom/pan, native browser zoom used */
   }
   #zoomable-content img {
     display: block;
@@ -60,7 +60,7 @@
     border-radius: 50%;
     cursor: grab;
     z-index: 1000;
-    touch-action: none; /* Important: prevent default touch zoom/scroll while dragging handle */
+    touch-action: none; /* Prevent default touch zoom/scroll on drag handle */
   }
   .drag-handle:active {
     cursor: grabbing;
@@ -114,14 +114,14 @@
       imageElement.style.position = 'relative';
 
       imageElement.onload = () => {
-        // Make image fit container with max width and height, maintaining aspect ratio
+        // Make image fit container width max 100% to keep fully visible and scaled
         imageElement.style.maxWidth = '100%';
         imageElement.style.height = 'auto';
 
         zoomableContent.appendChild(imageElement);
         controls.style.display = 'block';
 
-        // Reset container scroll and position for good UX on image change
+        // Reset scroll on image change for UX
         container.scrollTop = 0;
         container.scrollLeft = 0;
       };
@@ -135,7 +135,6 @@
 
     const wrapper = document.createElement('div');
     wrapper.className = 'textbox-wrapper';
-    // Position initial near top-left corner, inside container offset
     wrapper.style.top = '10px';
     wrapper.style.left = '10px';
 
@@ -154,13 +153,12 @@
     makeDraggable(wrapper, dragHandle);
   });
 
-  // Unified drag for desktop and mobile using pointer events if supported, else fallback to mouse and touch
+  // Unified drag for mouse and touch on drag handle
   function makeDraggable(wrapper, handle) {
     let isDragging = false;
     let startX, startY;
     let origX, origY;
 
-    // Get pointer position from event (mouse, touch, pointer)
     function getPointerPos(e) {
       if (e.touches && e.touches.length > 0) {
         return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -194,18 +192,15 @@
       const dx = pointer.x - startX;
       const dy = pointer.y - startY;
 
-      // Calculate new position relative to zoomableContent container:
-      // Because image can scale with CSS max-width 100%, container width sets limit
       const containerRect = zoomableContent.getBoundingClientRect();
 
       let newLeft = origX + dx - containerRect.left;
       let newTop = origY + dy - containerRect.top;
 
-      // Clamp position so box never goes outside container visually
+      // Clamp position so box stays inside image area (visible area)
       newLeft = Math.max(0, Math.min(newLeft, containerRect.width - wrapper.offsetWidth));
       newTop = Math.max(0, Math.min(newTop, containerRect.height - wrapper.offsetHeight));
 
-      // Apply new position (pixel values)
       wrapper.style.left = newLeft + 'px';
       wrapper.style.top = newTop + 'px';
     }
@@ -216,15 +211,13 @@
       handle.style.cursor = 'grab';
     }
 
-    // Use pointer events if supported (most browsers except iOS Safari)
     if (window.PointerEvent) {
-      handle.style.touchAction = 'none'; // important to prevent default gesture while dragging handle
+      handle.style.touchAction = 'none';
       handle.addEventListener('pointerdown', dragStart);
       window.addEventListener('pointermove', dragMove);
       window.addEventListener('pointerup', dragEnd);
       window.addEventListener('pointercancel', dragEnd);
     } else {
-      // fallback to mouse and touch
       handle.addEventListener('mousedown', dragStart);
       handle.addEventListener('touchstart', dragStart, { passive: false });
       window.addEventListener('mousemove', dragMove);
@@ -242,32 +235,19 @@
       return;
     }
 
-    // Create canvas sized to original image natural size
     const canvas = document.createElement('canvas');
     canvas.width = imageElement.naturalWidth;
     canvas.height = imageElement.naturalHeight;
     const ctx = canvas.getContext('2d');
 
-    // Draw base image fully
     ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
 
-    // Calculate image display size and position in zoomableContent
-    const displayedWidth = imageElement.width;
-    const displayedHeight = imageElement.height;
-
-    // We want to convert current box positions (relative to zoomableContent)
-    // into corresponding positions scaled to natural size
-    // However, image is scaled with max-width 100%, so zoomableContent can be bigger or smaller than natural size in pixels
-
+    const imageRect = imageElement.getBoundingClientRect();
     const zoomableRect = zoomableContent.getBoundingClientRect();
 
-    // Determine scale factor between displayed image and natural image
-    // Because max-width:100% can make image smaller than natural size
-    const imageRect = imageElement.getBoundingClientRect();
     const scaleX = canvas.width / imageRect.width;
     const scaleY = canvas.height / imageRect.height;
 
-    // Render each textbox
     const wrappers = zoomableContent.querySelectorAll('.textbox-wrapper');
     wrappers.forEach(wrapper => {
       const textarea = wrapper.querySelector('textarea');
@@ -276,24 +256,14 @@
       const fontFamily = style.fontFamily;
       const color = style.color || 'black';
 
-      // Position of wrapper relative to zoomableContent (which is relative to container)
-      // Use wrapper.style.left/top (px string) but convert to number
-      // We have wrapper positioned inside zoomableContent div
-
       const wrapperLeft = parseFloat(wrapper.style.left || 0);
       const wrapperTop = parseFloat(wrapper.style.top || 0);
 
-      // Calculate coordinates relative to image element displayed position within zoomableContent
-      // imageRect may be offset within zoomableContent if zoomableContent is bigger than image (unlikely but handle)
-      const zoomableRectLeft = zoomableRect.left;
-      const imageRectLeft = imageRect.left;
-      const offsetX = wrapperLeft + zoomableRectLeft - imageRectLeft;
+      // Positions relative to image inside zoomable-content
+      // Because image can be smaller than zoomable container, adjust by difference between zoomable-content and image bounding boxes
+      const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
+      const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
 
-      const zoomableRectTop = zoomableRect.top;
-      const imageRectTop = imageRect.top;
-      const offsetY = wrapperTop + zoomableRectTop - imageRectTop;
-
-      // Scale position to natural image size
       const x = offsetX * scaleX;
       const y = offsetY * scaleY;
 
@@ -304,12 +274,11 @@
       const lines = textarea.value.split('\n');
       const lineHeight = fontSize * 1.2 * scaleY;
 
-      lines.forEach((line, idx) => {
-        ctx.fillText(line, x, y + idx * lineHeight);
+      lines.forEach((line, i) => {
+        ctx.fillText(line, x, y + i * lineHeight);
       });
     });
 
-    // Create download link and trigger
     const link = document.createElement('a');
     link.download = 'edited-image.png';
     link.href = canvas.toDataURL('image/png');
