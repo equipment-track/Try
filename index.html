@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Image Editor with Floating Text Style Toolbar Fixed</title>
+<title>Image Editor with Color and Font Family Selection</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -51,6 +51,8 @@
     overflow-wrap: break-word;
     font-weight: normal;
     font-style: normal;
+    color: black;
+    font-family: Arial, sans-serif;
   }
   .drag-handle {
     position: absolute;
@@ -75,11 +77,13 @@
     padding: 6px 12px;
     font-size: 14px;
   }
+
   /* Floating style toolbar */
   #styleControls {
     position: absolute;
     display: flex;
     gap: 8px;
+    align-items: center;
     background: rgba(255,255,255,0.95);
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -95,7 +99,7 @@
     visibility: visible;
     opacity: 1;
   }
-  #styleControls button, #styleControls select {
+  #styleControls button, #styleControls select, #styleControls input[type="color"] {
     cursor: pointer;
     font-size: 14px;
     background: white;
@@ -111,11 +115,17 @@
   #styleControls select {
     min-width: 60px;
   }
+  #styleControls input[type="color"] {
+    width: 32px;
+    height: 28px;
+    padding: 0;
+    border: none;
+  }
 </style>
 </head>
 <body>
 
-<h2>Image Editor with Floating Text Style Toolbar Fixed</h2>
+<h2>Image Editor with Color and Font Family Selection</h2>
 
 <input type="file" id="imageUploader" accept="image/*" />
 <div id="container">
@@ -142,6 +152,14 @@
     <option value="28px">28</option>
     <option value="32px">32</option>
   </select>
+  <select id="fontFamilySelect" title="Select Font Family" aria-label="Font family">
+    <option value="Arial, sans-serif" selected>Arial</option>
+    <option value="'Times New Roman', serif">Times New Roman</option>
+    <option value="'Courier New', monospace">Courier New</option>
+    <option value="Georgia, serif">Georgia</option>
+    <option value="Verdana, sans-serif">Verdana</option>
+  </select>
+  <input type="color" id="fontColorPicker" title="Pick Text Color" aria-label="Text color" value="#000000" />
 </div>
 
 <script>
@@ -156,11 +174,12 @@
   const boldBtn = document.getElementById('boldBtn');
   const italicBtn = document.getElementById('italicBtn');
   const fontSizeSelect = document.getElementById('fontSizeSelect');
+  const fontFamilySelect = document.getElementById('fontFamilySelect');
+  const fontColorPicker = document.getElementById('fontColorPicker');
 
   let imageElement = null;
   let focusedTextarea = null;
 
-  // Show/hide and position styleControls above focused textarea
   function updateStyleControlsPosition() {
     if (!focusedTextarea) {
       styleControls.classList.remove('visible');
@@ -197,6 +216,9 @@
     italicBtn.setAttribute('aria-pressed', focusedTextarea.style.fontStyle === 'italic');
 
     fontSizeSelect.value = focusedTextarea.style.fontSize || '16px';
+    fontFamilySelect.value = focusedTextarea.style.fontFamily || 'Arial, sans-serif';
+    // Normalize color - if empty default to black
+    fontColorPicker.value = rgbToHex(focusedTextarea.style.color) || '#000000';
   }
 
   function hideStyleControls() {
@@ -225,6 +247,20 @@
     focusedTextarea.focus();
   });
 
+  fontFamilySelect.addEventListener('change', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontFamily = fontFamilySelect.value;
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+  });
+
+  fontColorPicker.addEventListener('input', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.color = fontColorPicker.value;
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+  });
+
   zoomableContent.addEventListener('focusin', e => {
     if (e.target.tagName === 'TEXTAREA') {
       focusedTextarea = e.target;
@@ -235,12 +271,10 @@
   });
 
   zoomableContent.addEventListener('focusout', e => {
-    // Delay hiding controls to allow interaction with styleControls
     setTimeout(() => {
       const active = document.activeElement;
       if (focusedTextarea && (active === focusedTextarea || styleControls.contains(active))) {
-        // Focus still on textarea or toolbar, keep visible
-        return;
+        return; // still focused or interacting with toolbar
       }
       focusedTextarea = null;
       hideStyleControls();
@@ -298,7 +332,7 @@
     makeDraggable(wrapper, dragHandle);
   });
 
-  // Drag implementation on handle for mouse/touch/pointer
+  // Drag handle code remains the same
   function makeDraggable(wrapper, handle) {
     let isDragging = false;
     let startX, startY;
@@ -374,13 +408,23 @@
     }
   }
 
-  // Download final image with styled text boxes
+  // Helper: convert rgb/rgba string to hex for color input sync
+  function rgbToHex(rgb) {
+    if (!rgb) return null;
+    const result = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if (!result) return null;
+    return "#" + 
+      ("0" + parseInt(result[1],10).toString(16)).slice(-2) +
+      ("0" + parseInt(result[2],10).toString(16)).slice(-2) +
+      ("0" + parseInt(result[3],10).toString(16)).slice(-2);
+  }
+
+  // Download function remains unchanged...
   downloadBtn.addEventListener('click', () => {
     if (!imageElement) {
       alert("Please upload an image first.");
       return;
     }
-
     const canvas = document.createElement('canvas');
     canvas.width = imageElement.naturalWidth;
     canvas.height = imageElement.naturalHeight;
@@ -433,7 +477,7 @@
   });
 </script>
 
-<p><small>Drag the <b>blue dot</b> to move text boxes. Resize boxes using the corner handle. Click inside a box to edit text and see style controls above it (bold, italic, text size). Use your device’s native zoom. Text editing works normally.</small></p>
+<p><small>Drag the <b>blue dot</b> to move text boxes. Resize boxes using the corner handle. Click inside a box to edit text and see style controls above it (bold, italic, text size, font family, color). Use your device’s native zoom. Text editing works normally.</small></p>
 
 </body>
 </html>
