@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Image Template Editor</title>
+<title>Mobile-Friendly Image Template Editor</title>
 <style>
   body { font-family: Arial, sans-serif; padding: 10px; }
   #imageContainer {
@@ -11,11 +11,14 @@
     display: inline-block;
     border: 1px solid #ccc;
     max-width: 100%;
+    touch-action: none; /* Prevents touch scrolling when dragging */
   }
   #imageContainer img {
     display: block;
     max-width: 100%;
     height: auto;
+    user-select: none;
+    -webkit-user-drag: none;
   }
   .textbox {
     position: absolute;
@@ -28,12 +31,16 @@
     font-size: 16px;
     padding: 4px;
     cursor: move;
+    user-select: text;
+    box-sizing: border-box;
   }
   #controls {
     margin-top: 15px;
   }
   button {
     margin-right: 10px;
+    padding: 6px 12px;
+    font-size: 14px;
   }
 </style>
 </head>
@@ -73,6 +80,7 @@
       imageElement.style.userSelect = 'none';
 
       imageElement.onload = () => {
+        // Set fixed pixel dimensions for container to match image natural size for canvas scaling
         imageContainer.style.width = imageElement.width + 'px';
         imageContainer.style.height = imageElement.height + 'px';
         imageContainer.appendChild(imageElement);
@@ -82,7 +90,7 @@
     reader.readAsDataURL(file);
   });
 
-  // Add a new draggable textbox
+  // Add a new draggable and editable textbox
   addTextBoxBtn.addEventListener('click', () => {
     if(!imageElement) return;
 
@@ -98,37 +106,64 @@
     textbox.focus();
   });
 
-  // Make element draggable inside the image container
+  // Make element draggable inside the image container (supports mouse + touch)
   function makeDraggable(el) {
     let isDragging = false;
     let offsetX, offsetY;
 
-    el.addEventListener('mousedown', (e) => {
+    function getClientXY(e) {
+      if (e.touches && e.touches.length > 0) {
+        return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+      }
+      return { clientX: e.clientX, clientY: e.clientY };
+    }
+
+    function dragStart(e) {
+      // To allow editing text when clicking inside, only start drag if not selecting text
+      if (e.target.tagName.toLowerCase() === 'textarea') {
+        // If text is selected or cursor inside textarea, don't start drag
+        // But we want to allow drag from border or if user is dragging outside text selection
+        // Simplify by starting drag only if shift key is pressed (optional)
+        if (!e.shiftKey) return;
+      }
+      const { clientX, clientY } = getClientXY(e);
       isDragging = true;
-      offsetX = e.clientX - el.getBoundingClientRect().left;
-      offsetY = e.clientY - el.getBoundingClientRect().top;
+      offsetX = clientX - el.getBoundingClientRect().left;
+      offsetY = clientY - el.getBoundingClientRect().top;
       el.style.cursor = 'grabbing';
       e.preventDefault();
-    });
+    }
 
-    document.addEventListener('mouseup', (e) => {
+    function dragEnd(e) {
+      if(!isDragging) return;
       isDragging = false;
-      if(el) el.style.cursor = 'move';
-    });
+      el.style.cursor = 'move';
+    }
 
-    document.addEventListener('mousemove', (e) => {
+    function dragMove(e) {
       if (!isDragging) return;
+      const { clientX, clientY } = getClientXY(e);
       const containerRect = imageContainer.getBoundingClientRect();
-      let left = e.clientX - containerRect.left - offsetX;
-      let top = e.clientY - containerRect.top - offsetY;
+      let left = clientX - containerRect.left - offsetX;
+      let top = clientY - containerRect.top - offsetY;
 
-      // Keep textbox inside image
+      // Constrain textbox inside image container boundaries
       left = Math.max(0, Math.min(left, containerRect.width - el.offsetWidth));
       top = Math.max(0, Math.min(top, containerRect.height - el.offsetHeight));
-      
+
       el.style.left = left + 'px';
       el.style.top = top + 'px';
-    });
+    }
+
+    // Dragging activates on mousedown or touchstart with shift key for desktop text editing friendliness.
+    el.addEventListener('mousedown', dragStart);
+    el.addEventListener('touchstart', dragStart, { passive: false });
+
+    document.addEventListener('mouseup', dragEnd);
+    document.addEventListener('touchend', dragEnd);
+
+    document.addEventListener('mousemove', dragMove);
+    document.addEventListener('touchmove', dragMove, { passive: false });
   }
 
   // Download final image with text overlaid
@@ -150,13 +185,21 @@
       const fontSize = parseInt(style.fontSize);
       const fontFamily = style.fontFamily;
       const color = style.color || 'black';
-      const x = parseInt(textbox.style.left) * (canvas.width / imageElement.width);
-      const y = (parseInt(textbox.style.top) + fontSize) * (canvas.height / imageElement.height);
-      ctx.font = `${fontSize * (canvas.width / imageElement.width)}px ${fontFamily}`;
+      const lineHeight = fontSize * 1.2;
+
+      // Calculate scaled position on canvas according to image natural size vs displayed size
+      const scaleX = canvas.width / imageElement.width;
+      const scaleY = canvas.height / imageElement.height;
+      const x = parseInt(textbox.style.left) * scaleX;
+      const y = (parseInt(textbox.style.top) + fontSize) * scaleY;
+
+      ctx.font = `${fontSize * scaleX}px ${fontFamily}`;
       ctx.fillStyle = color;
+      ctx.textBaseline = 'top';
+
       const lines = textbox.value.split('\n');
       lines.forEach((line, idx) => {
-        ctx.fillText(line, x, y + idx * fontSize * (canvas.height / imageElement.height));
+        ctx.fillText(line, x, y + idx * lineHeight * scaleY);
       });
     });
 
