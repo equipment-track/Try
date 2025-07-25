@@ -3,34 +3,35 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Image Editor with Drag Handle Text Boxes & Zoom</title>
+<title>Image Editor with Drag Handle & Native Zoom</title>
 <style>
   body {
     font-family: Arial, sans-serif;
     padding: 10px;
-    user-select: none;
+    /* Allow native pinch zoom */
+    -webkit-user-select: text; /* Allow text selection */
+    -webkit-touch-callout: default;
   }
   #container {
     position: relative;
     border: 1px solid #ccc;
     display: inline-block;
     overflow: hidden;
-    touch-action: none;
     background: #f0f0f0;
-    cursor: grab;
     width: 600px;
     height: 400px;
   }
   #zoomable-content {
     position: relative;
-    transform-origin: 0 0;
     user-select: none;
+    /* No custom zoom/pan, native browser zoom used */
   }
   #zoomable-content img {
     display: block;
     user-select: none;
     -webkit-user-drag: none;
-    max-width: none;
+    max-width: 100%;
+    height: auto;
   }
   .textbox-wrapper {
     position: absolute;
@@ -53,12 +54,13 @@
     position: absolute;
     top: -10px;
     left: -10px;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     background-color: #007bff;
     border-radius: 50%;
     cursor: grab;
     z-index: 1000;
+    touch-action: none; /* Important: prevent default touch zoom/scroll while dragging handle */
   }
   .drag-handle:active {
     cursor: grabbing;
@@ -75,7 +77,7 @@
 </head>
 <body>
 
-<h2>Image Editor with Drag Handle Text Boxes & Zoom</h2>
+<h2>Image Editor with Drag Handle & Native Browser Zoom</h2>
 
 <input type="file" id="imageUploader" accept="image/*" />
 <div id="container">
@@ -85,7 +87,7 @@
 <div id="controls" style="display:none;">
   <button id="addTextBoxBtn">Add Text Box</button>
   <button id="downloadBtn">Download Image</button>
-  <span style="margin-left:20px;">Use mouse wheel to zoom (desktop). Pinch to zoom (mobile). Drag blue dot to move boxes.</span>
+  <span style="margin-left:20px;">Use your device’s native zoom controls (pinch zoom, browser zoom). Drag blue dot to move boxes.</span>
 </div>
 
 <script>
@@ -97,13 +99,8 @@
   const downloadBtn = document.getElementById('downloadBtn');
 
   let imageElement = null;
-  let scale = 1;
-  let lastTouchDistance = null;
-  let isPanning = false;
-  let panStart = { x: 0, y: 0 };
-  let panOffset = { x: 0, y: 0 };
 
-  // Load image and set container size
+  // Handle image upload and set image inside zoomable-content
   imageUploader.addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -117,26 +114,28 @@
       imageElement.style.position = 'relative';
 
       imageElement.onload = () => {
-        zoomableContent.style.width = imageElement.naturalWidth + 'px';
-        zoomableContent.style.height = imageElement.naturalHeight + 'px';
-
-        scale = 1;
-        panOffset = { x: 0, y: 0 };
-        applyTransform(panOffset.x, panOffset.y, scale);
+        // Make image fit container with max width and height, maintaining aspect ratio
+        imageElement.style.maxWidth = '100%';
+        imageElement.style.height = 'auto';
 
         zoomableContent.appendChild(imageElement);
         controls.style.display = 'block';
+
+        // Reset container scroll and position for good UX on image change
+        container.scrollTop = 0;
+        container.scrollLeft = 0;
       };
     };
     reader.readAsDataURL(file);
   });
 
-  // Add a new textbox wrapper with textarea and drag handle
+  // Add new textbox wrapper with textarea and drag handle
   addTextBoxBtn.addEventListener('click', () => {
     if (!imageElement) return;
 
     const wrapper = document.createElement('div');
     wrapper.className = 'textbox-wrapper';
+    // Position initial near top-left corner, inside container offset
     wrapper.style.top = '10px';
     wrapper.style.left = '10px';
 
@@ -155,22 +154,28 @@
     makeDraggable(wrapper, dragHandle);
   });
 
-  // Draggable function on wrapper using drag handle only
+  // Unified drag for desktop and mobile using pointer events if supported, else fallback to mouse and touch
   function makeDraggable(wrapper, handle) {
     let isDragging = false;
     let startX, startY;
     let origX, origY;
 
+    // Get pointer position from event (mouse, touch, pointer)
     function getPointerPos(e) {
       if (e.touches && e.touches.length > 0) {
         return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      } else if (e.clientX !== undefined && e.clientY !== undefined) {
+        return { x: e.clientX, y: e.clientY };
+      } else if (e.pointerType) {
+        return { x: e.clientX, y: e.clientY };
       }
-      return { x: e.clientX, y: e.clientY };
+      return null;
     }
 
     function dragStart(e) {
       e.preventDefault();
       const pointer = getPointerPos(e);
+      if (!pointer) return;
       isDragging = true;
       startX = pointer.x;
       startY = pointer.y;
@@ -184,16 +189,23 @@
       if (!isDragging) return;
       e.preventDefault();
       const pointer = getPointerPos(e);
+      if (!pointer) return;
+
       const dx = pointer.x - startX;
       const dy = pointer.y - startY;
 
-      let newLeft = (origX + dx - zoomableContent.getBoundingClientRect().left) / scale;
-      let newTop = (origY + dy - zoomableContent.getBoundingClientRect().top) / scale;
+      // Calculate new position relative to zoomableContent container:
+      // Because image can scale with CSS max-width 100%, container width sets limit
+      const containerRect = zoomableContent.getBoundingClientRect();
 
-      // Clamp within image boundaries
-      newLeft = Math.max(0, Math.min(newLeft, zoomableContent.clientWidth - wrapper.offsetWidth));
-      newTop = Math.max(0, Math.min(newTop, zoomableContent.clientHeight - wrapper.offsetHeight));
+      let newLeft = origX + dx - containerRect.left;
+      let newTop = origY + dy - containerRect.top;
 
+      // Clamp position so box never goes outside container visually
+      newLeft = Math.max(0, Math.min(newLeft, containerRect.width - wrapper.offsetWidth));
+      newTop = Math.max(0, Math.min(newTop, containerRect.height - wrapper.offsetHeight));
+
+      // Apply new position (pixel values)
       wrapper.style.left = newLeft + 'px';
       wrapper.style.top = newTop + 'px';
     }
@@ -204,107 +216,58 @@
       handle.style.cursor = 'grab';
     }
 
-    handle.addEventListener('mousedown', dragStart);
-    handle.addEventListener('touchstart', dragStart, { passive: false });
-
-    document.addEventListener('mousemove', dragMove);
-    document.addEventListener('touchmove', dragMove, { passive: false });
-
-    document.addEventListener('mouseup', dragEnd);
-    document.addEventListener('touchend', dragEnd);
-  }
-
-  // Apply pan and zoom transform
-  function applyTransform(panX, panY, scale) {
-    zoomableContent.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-  }
-
-  // Mouse wheel zoom centered on cursor
-  container.addEventListener('wheel', e => {
-    e.preventDefault();
-    const rect = zoomableContent.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const zoomFactor = 0.1;
-    let newScale = scale;
-    if (e.deltaY < 0) {
-      newScale = scale * (1 + zoomFactor);
+    // Use pointer events if supported (most browsers except iOS Safari)
+    if (window.PointerEvent) {
+      handle.style.touchAction = 'none'; // important to prevent default gesture while dragging handle
+      handle.addEventListener('pointerdown', dragStart);
+      window.addEventListener('pointermove', dragMove);
+      window.addEventListener('pointerup', dragEnd);
+      window.addEventListener('pointercancel', dragEnd);
     } else {
-      newScale = scale * (1 - zoomFactor);
+      // fallback to mouse and touch
+      handle.addEventListener('mousedown', dragStart);
+      handle.addEventListener('touchstart', dragStart, { passive: false });
+      window.addEventListener('mousemove', dragMove);
+      window.addEventListener('touchmove', dragMove, { passive: false });
+      window.addEventListener('mouseup', dragEnd);
+      window.addEventListener('touchend', dragEnd);
+      window.addEventListener('touchcancel', dragEnd);
     }
-    newScale = Math.min(Math.max(newScale, 0.2), 5);
-
-    panOffset.x -= (mouseX / scale) * (newScale - scale);
-    panOffset.y -= (mouseY / scale) * (newScale - scale);
-
-    scale = newScale;
-    applyTransform(panOffset.x, panOffset.y, scale);
-  }, { passive: false });
-
-  // Touch pinch zoom and pan handlers
-  container.addEventListener('touchstart', e => {
-    if (e.touches.length === 2) {
-      lastTouchDistance = getDistance(e.touches[0], e.touches[1]);
-    } else if (e.touches.length === 1) {
-      isPanning = true;
-      panStart.x = e.touches[0].clientX - panOffset.x;
-      panStart.y = e.touches[0].clientY - panOffset.y;
-    }
-  }, { passive: false });
-
-  container.addEventListener('touchmove', e => {
-    if (e.touches.length === 2) {
-      e.preventDefault();
-      const newDistance = getDistance(e.touches[0], e.touches[1]);
-      if (lastTouchDistance) {
-        let zoomChange = newDistance / lastTouchDistance;
-        let newScale = scale * zoomChange;
-        newScale = Math.min(Math.max(newScale, 0.2), 5);
-
-        const rect = zoomableContent.getBoundingClientRect();
-        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-        const mouseX = midX - rect.left;
-        const mouseY = midY - rect.top;
-
-        panOffset.x -= (mouseX / scale) * (newScale - scale);
-        panOffset.y -= (mouseY / scale) * (newScale - scale);
-
-        scale = newScale;
-        applyTransform(panOffset.x, panOffset.y, scale);
-      }
-      lastTouchDistance = newDistance;
-    } else if (e.touches.length === 1 && isPanning) {
-      e.preventDefault();
-      panOffset.x = e.touches[0].clientX - panStart.x;
-      panOffset.y = e.touches[0].clientY - panStart.y;
-      applyTransform(panOffset.x, panOffset.y, scale);
-    }
-  }, { passive: false });
-
-  container.addEventListener('touchend', e => {
-    if (e.touches.length < 2) lastTouchDistance = null;
-    if (e.touches.length === 0) isPanning = false;
-  });
-
-  function getDistance(touch1, touch2) {
-    const dx = touch1.clientX - touch2.clientX;
-    const dy = touch1.clientY - touch2.clientY;
-    return Math.sqrt(dx * dx + dy * dy);
   }
 
-  // Download composed image at natural resolution with all text boxes
+  // Download final image with all text boxes rendered at original resolution
   downloadBtn.addEventListener('click', () => {
-    if (!imageElement) return;
+    if (!imageElement) {
+      alert("Please upload an image first.");
+      return;
+    }
 
+    // Create canvas sized to original image natural size
     const canvas = document.createElement('canvas');
     canvas.width = imageElement.naturalWidth;
     canvas.height = imageElement.naturalHeight;
     const ctx = canvas.getContext('2d');
 
+    // Draw base image fully
     ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
 
+    // Calculate image display size and position in zoomableContent
+    const displayedWidth = imageElement.width;
+    const displayedHeight = imageElement.height;
+
+    // We want to convert current box positions (relative to zoomableContent)
+    // into corresponding positions scaled to natural size
+    // However, image is scaled with max-width 100%, so zoomableContent can be bigger or smaller than natural size in pixels
+
+    const zoomableRect = zoomableContent.getBoundingClientRect();
+
+    // Determine scale factor between displayed image and natural image
+    // Because max-width:100% can make image smaller than natural size
+    const imageRect = imageElement.getBoundingClientRect();
+    const scaleX = canvas.width / imageRect.width;
+    const scaleY = canvas.height / imageRect.height;
+
+    // Render each textbox
     const wrappers = zoomableContent.querySelectorAll('.textbox-wrapper');
     wrappers.forEach(wrapper => {
       const textarea = wrapper.querySelector('textarea');
@@ -313,51 +276,48 @@
       const fontFamily = style.fontFamily;
       const color = style.color || 'black';
 
+      // Position of wrapper relative to zoomableContent (which is relative to container)
+      // Use wrapper.style.left/top (px string) but convert to number
+      // We have wrapper positioned inside zoomableContent div
+
+      const wrapperLeft = parseFloat(wrapper.style.left || 0);
+      const wrapperTop = parseFloat(wrapper.style.top || 0);
+
+      // Calculate coordinates relative to image element displayed position within zoomableContent
+      // imageRect may be offset within zoomableContent if zoomableContent is bigger than image (unlikely but handle)
+      const zoomableRectLeft = zoomableRect.left;
+      const imageRectLeft = imageRect.left;
+      const offsetX = wrapperLeft + zoomableRectLeft - imageRectLeft;
+
+      const zoomableRectTop = zoomableRect.top;
+      const imageRectTop = imageRect.top;
+      const offsetY = wrapperTop + zoomableRectTop - imageRectTop;
+
+      // Scale position to natural image size
+      const x = offsetX * scaleX;
+      const y = offsetY * scaleY;
+
       ctx.fillStyle = color;
-      ctx.font = `${fontSize}px ${fontFamily}`;
+      ctx.font = `${fontSize * scaleX}px ${fontFamily}`;
       ctx.textBaseline = 'top';
 
-      let x = parseFloat(wrapper.style.left);
-      let y = parseFloat(wrapper.style.top);
-
       const lines = textarea.value.split('\n');
-      const lineHeight = fontSize * 1.2;
-      lines.forEach((line, i) => {
-        ctx.fillText(line, x, y + i * lineHeight);
+      const lineHeight = fontSize * 1.2 * scaleY;
+
+      lines.forEach((line, idx) => {
+        ctx.fillText(line, x, y + idx * lineHeight);
       });
     });
 
+    // Create download link and trigger
     const link = document.createElement('a');
     link.download = 'edited-image.png';
     link.href = canvas.toDataURL('image/png');
     link.click();
   });
-
-  // Panning the entire container with mouse drag (only outside text boxes)
-  container.addEventListener('mousedown', e => {
-    if (e.target.closest('.textbox-wrapper') || e.target.tagName === 'TEXTAREA') return;
-    e.preventDefault();
-    isPanning = true;
-    panStart.x = e.clientX - panOffset.x;
-    panStart.y = e.clientY - panOffset.y;
-    container.style.cursor = 'grabbing';
-  });
-
-  document.addEventListener('mouseup', () => {
-    isPanning = false;
-    container.style.cursor = 'grab';
-  });
-
-  document.addEventListener('mousemove', e => {
-    if (!isPanning) return;
-    e.preventDefault();
-    panOffset.x = e.clientX - panStart.x;
-    panOffset.y = e.clientY - panStart.y;
-    applyTransform(panOffset.x, panOffset.y, scale);
-  });
 </script>
 
-<p><small>Drag the <b>blue dot</b> to move text boxes anywhere. Zoom with mouse wheel or pinch. Pan the image by dragging the background. Editing text inside the boxes works normally.</small></p>
+<p><small>Drag the <b>blue dot</b> on each text box to move it. Use your device’s native zoom (pinch zoom on mobile, browser zoom on desktop). Text editing works normally inside boxes.</small></p>
 
 </body>
 </html>
