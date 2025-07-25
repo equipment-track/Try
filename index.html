@@ -1,171 +1,172 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Minimal Text Box Template Editor</title>
-  <style>
-    body { background: #f2f4f9; font-family: Arial, sans-serif; margin: 0; }
-    .container { max-width: 820px; margin: 30px auto; background: #fff; border-radius: 12px; box-shadow: 0 6px 18px #0001; padding: 24px; }
-    h2 { text-align: center; }
-    .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; justify-content: center; }
-    .controls input[type="file"], .controls button { padding: 10px; border-radius: 6px; border: 1px solid #bcd; }
-    .controls button { background: #216afe; color: #fff; border: none; cursor: pointer; font-weight: bold; }
-    #previewContainer { position: relative; border: 2px solid #b3c7ec; border-radius: 11px; background: #f9fbff; margin: 0 auto; min-height: 320px; }
-    #templateCanvas { display: block; border-radius: 10px; min-width: 40px; min-height: 40px; background: #fafcff; }
-    .textbox {
-      position: absolute; min-width: 60px; min-height: 32px; border: 2px dashed #f7b046; border-radius: 8px;
-      background: rgba(247,176,70,0.09); resize: both; overflow: visible;
-      display: flex; align-items: flex-start;
-      cursor: move; box-sizing: border-box; z-index: 10;
-    }
-    .textbox.selected { border-color: #216afe; background: #e7f0ff; }
-    .textbox input {
-      border: none; outline: none; background: none; font-size: 17px; width: 100%; min-width: 0;
-      color: #222; font-family: inherit; padding: 4px 6px; flex: 1 1 0; background: transparent;
-    }
-    .resize-handle {
-      position: absolute; width: 16px; height: 16px; right: -9px; bottom: -9px;
-      background: #ffc107; border: 2px solid #fff; border-radius: 50%; cursor: nwse-resize; z-index: 20;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Image Template Editor</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 10px; }
+  #imageContainer {
+    position: relative;
+    display: inline-block;
+    border: 1px solid #ccc;
+    max-width: 100%;
+  }
+  #imageContainer img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  .textbox {
+    position: absolute;
+    min-width: 100px;
+    min-height: 30px;
+    border: 1px dashed #666;
+    background: rgba(255,255,255,0.7);
+    resize: none;
+    overflow: hidden;
+    font-size: 16px;
+    padding: 4px;
+    cursor: move;
+  }
+  #controls {
+    margin-top: 15px;
+  }
+  button {
+    margin-right: 10px;
+  }
+</style>
 </head>
 <body>
-<div class="container">
-  <h2>Simple Template Editor</h2>
-  <div class="controls">
-    <input type="file" accept="image/*" id="imageUpload">
-    <button id="addTextBoxBtn">Add Text Box</button>
-    <button id="applyBtn">Apply to Canvas</button>
-    <button id="downloadBtn">Download Image</button>
-  </div>
-  <div id="previewContainer">
-    <canvas id="templateCanvas"></canvas>
-  </div>
+
+<h2>Upload Image and Edit with Text Boxes</h2>
+
+<input type="file" id="imageUploader" accept="image/*" />
+<div id="imageContainer"></div>
+
+<div id="controls" style="display:none;">
+  <button id="addTextBoxBtn">Add Text Box</button>
+  <button id="downloadBtn">Download Image</button>
 </div>
+
 <script>
-const imageUpload = document.getElementById('imageUpload');
-const addBtn = document.getElementById('addTextBoxBtn');
-const applyBtn = document.getElementById('applyBtn');
-const downloadBtn = document.getElementById('downloadBtn');
-const preview = document.getElementById('previewContainer');
-const canvas = document.getElementById('templateCanvas');
-const ctx = canvas.getContext('2d');
-let image = new Image();
-let boxes = [];
+  const imageUploader = document.getElementById('imageUploader');
+  const imageContainer = document.getElementById('imageContainer');
+  const controls = document.getElementById('controls');
+  const addTextBoxBtn = document.getElementById('addTextBoxBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
 
-function fitCanvasToImage() {
-  canvas.width = image.width; canvas.height = image.height;
-  canvas.style.width = image.width+'px'; canvas.style.height = image.height+'px';
-  preview.style.width = image.width+'px'; preview.style.height = image.height+'px';
-}
+  let imageElement = null;
 
-imageUpload.onchange = function() {
-  if (!this.files[0]) return;
-  let reader = new FileReader();
-  reader.onload = e => {
-    image.src = e.target.result;
-    image.onload = () => {
-      fitCanvasToImage();
-      boxes = [];
-      renderBoxes();
-      drawCanvas();
+  // Handle image upload and display
+  imageUploader.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      imageContainer.innerHTML = ''; // Clear previous image and textboxes
+      imageElement = new Image();
+      imageElement.src = event.target.result;
+      imageElement.id = 'mainImage';
+      imageElement.draggable = false;
+      imageElement.style.userSelect = 'none';
+
+      imageElement.onload = () => {
+        imageContainer.style.width = imageElement.width + 'px';
+        imageContainer.style.height = imageElement.height + 'px';
+        imageContainer.appendChild(imageElement);
+        controls.style.display = 'block';
+      }
     };
-  };
-  reader.readAsDataURL(this.files[0]);
-};
-
-function drawCanvas() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  if (image.src) ctx.drawImage(image,0,0,canvas.width,canvas.height);
-  boxes.forEach(box => {
-    ctx.save();
-    ctx.translate(box.left, box.top);
-    ctx.font = "17px Arial";
-    ctx.fillStyle = "#212121";
-    ctx.textBaseline = "top";
-    ctx.beginPath();
-    ctx.rect(0,0,box.width,box.height);
-    ctx.clip();
-    let lines = (box.text||'').split('\n');
-    for (let i=0; i<lines.length; i++) {
-      ctx.fillText(lines[i], 4, 6 + i * 21, box.width - 8);
-    }
-    ctx.restore();
+    reader.readAsDataURL(file);
   });
-}
-function createBox(x=60, y=60) {
-  let box = { left: x, top: y, width: 150, height: 40, text: "Text..." };
-  boxes.push(box);
-  renderBoxes();
-}
 
-function renderBoxes() {
-  // Remove olds
-  document.querySelectorAll('.textbox').forEach(el => el.remove());
-  boxes.forEach((box,i) => {
-    const el = document.createElement('div');
-    el.className = 'textbox';
-    el.style.left = box.left+'px'; el.style.top = box.top+'px';
-    el.style.width = box.width+'px'; el.style.height = box.height+'px';
+  // Add a new draggable textbox
+  addTextBoxBtn.addEventListener('click', () => {
+    if(!imageElement) return;
 
-    // Text input
-    const input = document.createElement('input');
-    input.value = box.text;
-    input.oninput = e => { box.text = input.value; /*live preview*/ };
-    el.appendChild(input);
+    const textbox = document.createElement('textarea');
+    textbox.className = 'textbox';
+    textbox.style.top = '10px';
+    textbox.style.left = '10px';
+    textbox.value = 'Edit text';
+    textbox.rows = 1;
 
-    // Drag logic
-    let dragging = false, startX, startY, startL, startT;
-    el.addEventListener('mousedown', e => {
-      if (e.target.classList.contains('resize-handle')) return;
-      dragging = true; startX = e.clientX; startY = e.clientY; startL=box.left; startT=box.top;
-      el.classList.add('selected');
-    });
-    window.addEventListener('mousemove', e => {
-      if (!dragging) return;
-      const dx = e.clientX - startX, dy = e.clientY - startY;
-      box.left = Math.max(0, Math.min(canvas.width - box.width, startL+dx));
-      box.top = Math.max(0, Math.min(canvas.height - box.height, startT+dy));
-      el.style.left = box.left+'px'; el.style.top = box.top+'px';
-    });
-    window.addEventListener('mouseup', () => { dragging=false; el.classList.remove('selected'); });
-
-    // Resize logic
-    const grip = document.createElement('div'); grip.className = 'resize-handle';
-    el.appendChild(grip);
-    let resizing=false, sx,sy,sw,sh;
-    grip.addEventListener('mousedown', e => {
-      resizing=true; sx=e.clientX; sy=e.clientY; sw=box.width; sh=box.height; e.stopPropagation();
-    });
-    window.addEventListener('mousemove', e => {
-      if (!resizing) return;
-      box.width = Math.max(60, Math.min(canvas.width-box.left, sw+(e.clientX-sx)));
-      box.height= Math.max(32, Math.min(canvas.height-box.top, sh+(e.clientY-sy)));
-      el.style.width = box.width+'px'; el.style.height = box.height+'px';
-    });
-    window.addEventListener('mouseup',()=>{ resizing=false; });
-
-    preview.appendChild(el);
+    makeDraggable(textbox);
+    imageContainer.appendChild(textbox);
+    textbox.focus();
   });
-}
 
-addBtn.onclick = () => { if(!image.src) return alert("Upload image first"); createBox(40+boxes.length*10,60+boxes.length*10); };
-applyBtn.onclick = drawCanvas;
-downloadBtn.onclick = function() {
-  applyBtn.onclick(); // ensure up to date
-  setTimeout(()=>{
-    canvas.toBlob(blob => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'template-image.jpg';
-      a.click();
-      URL.revokeObjectURL(a.href);
-    }, "image/jpeg", 0.98);
-  }, 120);
-};
-// Init, support click to unselect
-window.onclick = function(e) { if (!e.target.classList.contains('textbox')) document.querySelectorAll('.textbox').forEach(t=>t.classList.remove('selected')); };
-})();
+  // Make element draggable inside the image container
+  function makeDraggable(el) {
+    let isDragging = false;
+    let offsetX, offsetY;
+
+    el.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      offsetX = e.clientX - el.getBoundingClientRect().left;
+      offsetY = e.clientY - el.getBoundingClientRect().top;
+      el.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mouseup', (e) => {
+      isDragging = false;
+      if(el) el.style.cursor = 'move';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const containerRect = imageContainer.getBoundingClientRect();
+      let left = e.clientX - containerRect.left - offsetX;
+      let top = e.clientY - containerRect.top - offsetY;
+
+      // Keep textbox inside image
+      left = Math.max(0, Math.min(left, containerRect.width - el.offsetWidth));
+      top = Math.max(0, Math.min(top, containerRect.height - el.offsetHeight));
+      
+      el.style.left = left + 'px';
+      el.style.top = top + 'px';
+    });
+  }
+
+  // Download final image with text overlaid
+  downloadBtn.addEventListener('click', () => {
+    if (!imageElement) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = imageElement.naturalWidth;
+    canvas.height = imageElement.naturalHeight;
+    const ctx = canvas.getContext('2d');
+
+    // Draw base image
+    ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+
+    // Draw each textbox text onto canvas
+    const textboxes = imageContainer.querySelectorAll('.textbox');
+    textboxes.forEach(textbox => {
+      const style = window.getComputedStyle(textbox);
+      const fontSize = parseInt(style.fontSize);
+      const fontFamily = style.fontFamily;
+      const color = style.color || 'black';
+      const x = parseInt(textbox.style.left) * (canvas.width / imageElement.width);
+      const y = (parseInt(textbox.style.top) + fontSize) * (canvas.height / imageElement.height);
+      ctx.font = `${fontSize * (canvas.width / imageElement.width)}px ${fontFamily}`;
+      ctx.fillStyle = color;
+      const lines = textbox.value.split('\n');
+      lines.forEach((line, idx) => {
+        ctx.fillText(line, x, y + idx * fontSize * (canvas.height / imageElement.height));
+      });
+    });
+
+    // Create downloadable link
+    const link = document.createElement('a');
+    link.download = 'edited-image.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
 </script>
+
 </body>
 </html>
