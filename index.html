@@ -3,20 +3,24 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Image Editor - Download & Share</title>
+<title>Image Editor - Lock Text Boxes & Extras</title>
 <style>
   body {
     font-family: Arial, sans-serif;
     padding: 10px;
     -webkit-user-select: text;
     -webkit-touch-callout: default;
+    background: #f9f9f9;
+  }
+  h2 {
+    margin-top: 0;
   }
   #container {
     position: relative;
     border: 1px solid #ccc;
     display: inline-block;
     overflow: auto;
-    background: #f0f0f0;
+    background: white;
     width: 100%;
     max-width: 900px;
     max-height: 80vh;
@@ -36,6 +40,11 @@
   .textbox-wrapper {
     position: absolute;
     display: inline-block;
+    border: 1px solid transparent;
+    box-sizing: border-box;
+  }
+  .textbox-wrapper.locked {
+    opacity: 0.7;
   }
   .textbox-wrapper textarea {
     font-size: 16px;
@@ -54,6 +63,11 @@
     color: black;
     font-family: Arial, sans-serif;
   }
+  .textbox-wrapper.locked textarea {
+    cursor: default;
+    user-select: none;
+    background: #eee;
+  }
   .drag-handle {
     position: absolute;
     top: -10px;
@@ -63,20 +77,76 @@
     background-color: #007bff;
     border-radius: 50%;
     cursor: grab;
-    z-index: 1000;
+    z-index: 1002;
     touch-action: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+    user-select: none;
   }
   .drag-handle:active {
     cursor: grabbing;
   }
-  #toggleSavedTemplatesBtn {
+  .textbox-wrapper.locked .drag-handle {
+    cursor: default;
+    background-color: #999;
+  }
+  .textbox-buttons {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    display: flex;
+    gap: 4px;
+    z-index: 1003;
+  }
+  .textbox-buttons button {
+    font-size: 12px;
+    background: #007bff;
+    border: none;
+    color: white;
+    border-radius: 3px;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    user-select: none;
+  }
+  .textbox-buttons button:hover {
+    background: #0056b3;
+  }
+  #toggleSavedTemplatesBtn, #snapToggleBtn, #clearAllBtn {
+    margin-right: 10px;
     margin-bottom: 10px;
+    padding: 6px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 4px;
+    border: 1px solid #007bff;
+    background: white;
+    color: #007bff;
+    user-select: none;
+  }
+  #toggleSavedTemplatesBtn:hover, #snapToggleBtn:hover, #clearAllBtn:hover {
+    background: #007bff;
+    color: white;
+  }
+  #clearAllBtn {
+    border-color: #d9534f;
+    color: #d9534f;
+  }
+  #clearAllBtn:hover {
+    background: #d9534f;
+    color: white;
   }
   #controls {
-    margin-top: 15px;
+    margin-top: 8px;
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
   }
   #controls button,
@@ -87,7 +157,7 @@
     vertical-align: middle;
   }
   #templateNameInput {
-    width: 200px;
+    width: 180px;
   }
   #savedTemplatesContainer {
     max-height: 150px;
@@ -96,6 +166,7 @@
     padding: 4px;
     margin-top: 6px;
     display: none;
+    background: white;
   }
   #savedTemplatesList {
     list-style: none;
@@ -109,6 +180,7 @@
     align-items: center;
     padding: 4px 8px;
     border-radius: 3px;
+    user-select: none;
   }
   #savedTemplatesList li:hover {
     background: #e7f1ff;
@@ -119,6 +191,7 @@
   }
   #savedTemplatesList li button {
     margin-left: 8px;
+    cursor: pointer;
   }
   /* Floating style toolbar */
   #styleControls {
@@ -165,15 +238,71 @@
     padding: 0;
     border: none;
   }
+  /* Modal popup for download format */
+  #downloadFormatPopup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border: 2px solid #007bff;
+    border-radius: 6px;
+    padding: 16px 24px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+    z-index: 3000;
+    display: none;
+    font-size: 14px;
+    user-select: none;
+  }
+  #downloadFormatPopup strong {
+    display: block;
+    margin-bottom: 12px;
+  }
+  #downloadFormatPopup label {
+    display: block;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+  #downloadFormatPopup button {
+    margin-top: 12px;
+    padding: 6px 14px;
+    font-size: 14px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  #downloadFormatPopup button:hover {
+    background: #0056b3;
+  }
+  #downloadFormatPopup #cancelDownloadPopup {
+    background: #ccc;
+    color: black;
+    margin-left: 8px;
+  }
+  /* Grid overlay (optional for snap to grid visualization) */
+  #gridOverlay {
+    position: absolute;
+    pointer-events: none;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background-image:
+      linear-gradient(to right, #ccc 1px, transparent 1px),
+      linear-gradient(to bottom, #ccc 1px, transparent 1px);
+    background-size: 10px 10px;
+    z-index: 0;
+  }
 </style>
 </head>
 <body>
 
-<h2>Image Editor - Download & Share</h2>
+<h2>Image Editor - Lock Text Boxes + Extras</h2>
 
 <input type="file" id="imageUploader" accept="image/*" />
-<br />
+<br/>
 <button id="toggleSavedTemplatesBtn" style="display:none;">Show Saved Templates</button>
+<button id="snapToggleBtn" title="Toggle Snap to Grid" style="display:none;">Enable Snap to Grid</button>
+<button id="clearAllBtn" title="Clear all text boxes & image" style="display:none; background:#d9534f; color:white;">New Project</button>
 
 <div id="savedTemplatesContainer">
   <ul id="savedTemplatesList"></ul>
@@ -182,7 +311,7 @@
 <div id="controls" style="display:none;">
   <button id="addTextBoxBtn">Add Text Box</button>
   <button id="downloadBtn" disabled>Download</button>
-  <button id="shareBtn" disabled>Share</button>
+  <button id="shareBtn" disabled>Share JPEG</button>
   <input type="text" id="templateNameInput" placeholder="Enter template name" />
   <button id="saveTemplateBtn" disabled>Save Template</button>
 </div>
@@ -213,10 +342,23 @@
 
 <div id="container">
   <div id="zoomable-content"></div>
+  <div id="gridOverlay" style="display:none;"></div>
+</div>
+
+<!-- Download Format Pop-up -->
+<div id="downloadFormatPopup">
+  <strong>Select Export Format:</strong>
+  <label><input type="radio" name="exportFormat" value="png" checked> PNG</label>
+  <label><input type="radio" name="exportFormat" value="jpeg"> JPEG</label>
+  <label><input type="radio" name="exportFormat" value="pdf"> PDF (print/save popup)</label>
+  <div style="margin-top:12px; text-align:right;">
+    <button id="confirmDownloadBtn">Export</button>
+    <button id="cancelDownloadPopup">Cancel</button>
+  </div>
 </div>
 
 <script>
-  // Element references
+  // Elements refs
   const imageUploader = document.getElementById('imageUploader');
   const container = document.getElementById('container');
   const zoomableContent = document.getElementById('zoomable-content');
@@ -229,18 +371,41 @@
   const savedTemplatesList = document.getElementById('savedTemplatesList');
   const savedTemplatesContainer = document.getElementById('savedTemplatesContainer');
   const toggleSavedTemplatesBtn = document.getElementById('toggleSavedTemplatesBtn');
-
+  const snapToggleBtn = document.getElementById('snapToggleBtn');
+  const clearAllBtn = document.getElementById('clearAllBtn');
   const styleControls = document.getElementById('styleControls');
   const boldBtn = document.getElementById('boldBtn');
   const italicBtn = document.getElementById('italicBtn');
   const fontSizeSelect = document.getElementById('fontSizeSelect');
   const fontFamilySelect = document.getElementById('fontFamilySelect');
   const fontColorPicker = document.getElementById('fontColorPicker');
+  const gridOverlay = document.getElementById('gridOverlay');
+  const downloadFormatPopup = document.getElementById('downloadFormatPopup');
+  const confirmDownloadBtn = document.getElementById('confirmDownloadBtn');
+  const cancelDownloadPopup = document.getElementById('cancelDownloadPopup');
 
   let imageElement = null;
   let focusedTextarea = null;
 
-  // --- Show/hide Saved Templates ---
+  // Snap to grid
+  let snapEnabled = false;
+  const gridSize = 10;
+
+  // Remember default text box styles
+  function saveDefaultStyles(styles) {
+    localStorage.setItem('defaultTextBoxStyles', JSON.stringify(styles));
+  }
+  function loadDefaultStyles() {
+    return JSON.parse(localStorage.getItem('defaultTextBoxStyles') || '{}');
+  }
+  let defaultStyles = loadDefaultStyles() || {};
+  if (!defaultStyles.fontSize) defaultStyles.fontSize = '16px';
+  if (!defaultStyles.fontFamily) defaultStyles.fontFamily = 'Arial, sans-serif';
+  if (!defaultStyles.color) defaultStyles.color = '#000000';
+  if (!defaultStyles.fontWeight) defaultStyles.fontWeight = 'normal';
+  if (!defaultStyles.fontStyle) defaultStyles.fontStyle = 'normal';
+
+  // Show/hide Saved Templates controls
   function afterTemplatesLoaded() {
     toggleSavedTemplatesBtn.style.display = 'inline-block';
     savedTemplatesContainer.style.display = 'none';
@@ -256,17 +421,14 @@
     }
   });
 
-  // --- Template Management ---
-
+  // Template Management (save/load/delete)
   function getSavedTemplates() {
     const data = localStorage.getItem('imageEditorTemplates');
     return data ? JSON.parse(data) : {};
   }
-
   function saveTemplatesToStorage(templates) {
     localStorage.setItem('imageEditorTemplates', JSON.stringify(templates));
   }
-
   function renderSavedTemplatesList() {
     savedTemplatesList.innerHTML = '';
     const templates = getSavedTemplates();
@@ -336,36 +498,38 @@
     saveTemplateBtn.disabled = !imageElement || !templateNameInput.value.trim();
   }
 
-  // --- Controls show/hide ---
-
+  // Show/Hide controls and update buttons
   function showControls() {
     controls.style.display = 'flex';
     updateSaveButtonState();
     updateDownloadShareButtonState();
+    snapToggleBtn.style.display = 'inline-block';
+    clearAllBtn.style.display = 'inline-block';
   }
-
   function updateDownloadShareButtonState() {
     const enable = !!imageElement;
     downloadBtn.disabled = !enable;
     shareBtn.disabled = !enable;
   }
 
-  // --- State capture and restore ---
+  // Capture and Restore editor state
   function captureCurrentState() {
     const textboxes = [];
     zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
       const textarea = wrapper.querySelector('textarea');
+      const isLocked = wrapper.classList.contains('locked');
       textboxes.push({
         top: wrapper.style.top,
         left: wrapper.style.left,
         width: textarea.style.width || textarea.offsetWidth + 'px',
         height: textarea.style.height || textarea.offsetHeight + 'px',
         value: textarea.value,
-        fontWeight: textarea.style.fontWeight || 'normal',
-        fontStyle: textarea.style.fontStyle || 'normal',
-        fontSize: textarea.style.fontSize || '16px',
-        fontFamily: textarea.style.fontFamily || 'Arial, sans-serif',
-        color: textarea.style.color || 'black'
+        fontWeight: textarea.style.fontWeight || defaultStyles.fontWeight || 'normal',
+        fontStyle: textarea.style.fontStyle || defaultStyles.fontStyle || 'normal',
+        fontSize: textarea.style.fontSize || defaultStyles.fontSize || '16px',
+        fontFamily: textarea.style.fontFamily || defaultStyles.fontFamily || 'Arial, sans-serif',
+        color: textarea.style.color || defaultStyles.color || 'black',
+        locked: isLocked
       });
     });
     return {
@@ -373,7 +537,6 @@
       textboxes
     };
   }
-
   function restoreState(state) {
     if (!state || !state.imageSrc) return;
     zoomableContent.innerHTML = '';
@@ -394,6 +557,7 @@
         wrapper.className = 'textbox-wrapper';
         wrapper.style.top = tb.top;
         wrapper.style.left = tb.left;
+        if(tb.locked) wrapper.classList.add('locked');
 
         const textarea = document.createElement('textarea');
         textarea.value = tb.value;
@@ -405,11 +569,57 @@
         textarea.style.fontFamily = tb.fontFamily;
         textarea.style.color = tb.color;
 
+        if(tb.locked) {
+          textarea.setAttribute('readonly', 'readonly');
+          textarea.style.cursor = 'default';
+          textarea.style.userSelect = 'none';
+          textarea.style.backgroundColor = '#eee';
+        } else {
+          textarea.removeAttribute('readonly');
+          textarea.style.cursor = 'text';
+          textarea.style.userSelect = 'text';
+          textarea.style.backgroundColor = 'rgba(255,255,255,0.7)';
+        }
+
         wrapper.appendChild(textarea);
 
         const dragHandle = document.createElement('div');
         dragHandle.className = 'drag-handle';
+        dragHandle.textContent = '●';
+        if(tb.locked) {
+          dragHandle.style.cursor = 'default';
+          dragHandle.style.backgroundColor = '#999';
+        }
         wrapper.appendChild(dragHandle);
+
+        // Buttons container
+        const btnContainer = document.createElement('div');
+        btnContainer.className = 'textbox-buttons';
+
+        const dupBtn = document.createElement('button');
+        dupBtn.title = 'Duplicate';
+        dupBtn.textContent = '⎘';
+        dupBtn.addEventListener('click', () => duplicateTextBox(wrapper));
+        btnContainer.appendChild(dupBtn);
+
+        const lockBtn = document.createElement('button');
+        lockBtn.title = tb.locked ? 'Unlock Text Box' : 'Lock Text Box';
+        lockBtn.textContent = tb.locked ? '🔒' : '🔓';
+        lockBtn.addEventListener('click', () => toggleLockTextBox(wrapper, lockBtn, textarea, dragHandle));
+        btnContainer.appendChild(lockBtn);
+
+        const delBtn = document.createElement('button');
+        delBtn.title = 'Delete';
+        delBtn.textContent = '✕';
+        delBtn.addEventListener('click', () => {
+          if(confirm('Delete this text box?')) {
+            wrapper.remove();
+            hideStyleControls();
+          }
+        });
+        btnContainer.appendChild(delBtn);
+
+        wrapper.appendChild(btnContainer);
 
         zoomableContent.appendChild(wrapper);
         makeDraggable(wrapper, dragHandle);
@@ -419,7 +629,35 @@
     };
   }
 
-  // --- Floating style toolbar logic ---
+  // Toggle lock/unlock on text box
+  function toggleLockTextBox(wrapper, lockBtn, textarea, dragHandle) {
+    if(wrapper.classList.contains('locked')) {
+      // Unlock
+      wrapper.classList.remove('locked');
+      textarea.removeAttribute('readonly');
+      textarea.style.cursor = 'text';
+      textarea.style.userSelect = 'text';
+      textarea.style.backgroundColor = 'rgba(255,255,255,0.7)';
+      dragHandle.style.cursor = 'grab';
+      dragHandle.style.backgroundColor = '#007bff';
+      lockBtn.textContent = '🔓';
+      lockBtn.title = 'Lock Text Box';
+    } else {
+      // Lock
+      wrapper.classList.add('locked');
+      textarea.setAttribute('readonly', 'readonly');
+      textarea.style.cursor = 'default';
+      textarea.style.userSelect = 'none';
+      textarea.style.backgroundColor = '#eee';
+      dragHandle.style.cursor = 'default';
+      dragHandle.style.backgroundColor = '#999';
+      lockBtn.textContent = '🔒';
+      lockBtn.title = 'Unlock Text Box';
+    }
+  }
+
+  // Floating toolbar logic - same as before
+
   function updateStyleControlsPosition() {
     if (!focusedTextarea) {
       styleControls.classList.remove('visible');
@@ -427,6 +665,12 @@
       return;
     }
     const wrapper = focusedTextarea.parentElement;
+    if(wrapper.classList.contains('locked')) {
+      // Hide toolbar if locked
+      styleControls.classList.remove('visible');
+      styleControls.setAttribute('aria-hidden', 'true');
+      return;
+    }
     const containerRect = container.getBoundingClientRect();
     const textareaRect = focusedTextarea.getBoundingClientRect();
 
@@ -455,51 +699,54 @@
     italicBtn.classList.toggle('active', focusedTextarea.style.fontStyle === 'italic');
     italicBtn.setAttribute('aria-pressed', focusedTextarea.style.fontStyle === 'italic');
 
-    fontSizeSelect.value = focusedTextarea.style.fontSize || '16px';
-    fontFamilySelect.value = focusedTextarea.style.fontFamily || 'Arial, sans-serif';
+    fontSizeSelect.value = focusedTextarea.style.fontSize || defaultStyles.fontSize || '16px';
+    fontFamilySelect.value = focusedTextarea.style.fontFamily || defaultStyles.fontFamily || 'Arial, sans-serif';
     fontColorPicker.value = rgbToHex(focusedTextarea.style.color) || '#000000';
   }
-
   function hideStyleControls() {
     styleControls.classList.remove('visible');
     styleControls.setAttribute('aria-hidden', 'true');
   }
-
   boldBtn.addEventListener('click', () => {
     if (!focusedTextarea) return;
-    focusedTextarea.style.fontWeight = (focusedTextarea.style.fontWeight === 'bold') ? 'normal' : 'bold';
+    focusedTextarea.style.fontWeight = focusedTextarea.style.fontWeight === 'bold' ? 'normal' : 'bold';
     updateStyleControlsPosition();
     focusedTextarea.focus();
+    defaultStyles.fontWeight = focusedTextarea.style.fontWeight;
+    saveDefaultStyles(defaultStyles);
   });
-
   italicBtn.addEventListener('click', () => {
     if (!focusedTextarea) return;
-    focusedTextarea.style.fontStyle = (focusedTextarea.style.fontStyle === 'italic') ? 'normal' : 'italic';
+    focusedTextarea.style.fontStyle = focusedTextarea.style.fontStyle === 'italic' ? 'normal' : 'italic';
     updateStyleControlsPosition();
     focusedTextarea.focus();
+    defaultStyles.fontStyle = focusedTextarea.style.fontStyle;
+    saveDefaultStyles(defaultStyles);
   });
-
   fontSizeSelect.addEventListener('change', () => {
     if (!focusedTextarea) return;
     focusedTextarea.style.fontSize = fontSizeSelect.value;
     updateStyleControlsPosition();
     focusedTextarea.focus();
+    defaultStyles.fontSize = fontSizeSelect.value;
+    saveDefaultStyles(defaultStyles);
   });
-
   fontFamilySelect.addEventListener('change', () => {
     if (!focusedTextarea) return;
     focusedTextarea.style.fontFamily = fontFamilySelect.value;
     updateStyleControlsPosition();
     focusedTextarea.focus();
+    defaultStyles.fontFamily = fontFamilySelect.value;
+    saveDefaultStyles(defaultStyles);
   });
-
   fontColorPicker.addEventListener('input', () => {
     if (!focusedTextarea) return;
     focusedTextarea.style.color = fontColorPicker.value;
     updateStyleControlsPosition();
     focusedTextarea.focus();
+    defaultStyles.color = fontColorPicker.value;
+    saveDefaultStyles(defaultStyles);
   });
-
   zoomableContent.addEventListener('focusin', e => {
     if (e.target.tagName === 'TEXTAREA') {
       focusedTextarea = e.target;
@@ -508,13 +755,10 @@
       window.addEventListener('resize', updateStyleControlsPosition);
     }
   });
-
   zoomableContent.addEventListener('focusout', e => {
     setTimeout(() => {
       const active = document.activeElement;
-      if (focusedTextarea && (active === focusedTextarea || styleControls.contains(active))) {
-        return;
-      }
+      if (focusedTextarea && (active === focusedTextarea || styleControls.contains(active))) return;
       focusedTextarea = null;
       hideStyleControls();
       container.removeEventListener('scroll', updateStyleControlsPosition);
@@ -522,7 +766,14 @@
     }, 0);
   });
 
-  // --- Dragging ---
+  // Snap to grid toggle
+  snapToggleBtn.addEventListener('click', () => {
+    snapEnabled = !snapEnabled;
+    gridOverlay.style.display = snapEnabled ? 'block' : 'none';
+    snapToggleBtn.textContent = snapEnabled ? 'Disable Snap to Grid' : 'Enable Snap to Grid';
+  });
+
+  // makeDraggable with snapping if enabled
   function makeDraggable(wrapper, handle) {
     let isDragging = false;
     let startX, startY;
@@ -538,6 +789,7 @@
     }
 
     function dragStart(e) {
+      if(wrapper.classList.contains('locked')) return; // no dragging if locked
       e.preventDefault();
       const pointer = getPointerPos(e);
       if (!pointer) return;
@@ -548,6 +800,7 @@
       origX = rect.left;
       origY = rect.top;
       handle.style.cursor = 'grabbing';
+      wrapper.style.zIndex = 9999;
     }
 
     function dragMove(e) {
@@ -555,21 +808,19 @@
       e.preventDefault();
       const pointer = getPointerPos(e);
       if (!pointer) return;
-
-      const dx = pointer.x - startX;
-      const dy = pointer.y - startY;
-
+      let dx = pointer.x - startX;
+      let dy = pointer.y - startY;
       const containerRect = zoomableContent.getBoundingClientRect();
-
       let newLeft = origX + dx - containerRect.left;
       let newTop = origY + dy - containerRect.top;
-
+      if(snapEnabled) {
+        newLeft = Math.round(newLeft / gridSize) * gridSize;
+        newTop = Math.round(newTop / gridSize) * gridSize;
+      }
       newLeft = Math.max(0, Math.min(newLeft, containerRect.width - wrapper.offsetWidth));
       newTop = Math.max(0, Math.min(newTop, containerRect.height - wrapper.offsetHeight));
-
       wrapper.style.left = newLeft + 'px';
       wrapper.style.top = newTop + 'px';
-
       if (focusedTextarea && focusedTextarea.parentElement === wrapper) {
         updateStyleControlsPosition();
       }
@@ -579,6 +830,7 @@
       if (!isDragging) return;
       isDragging = false;
       handle.style.cursor = 'grab';
+      wrapper.style.zIndex = '';
     }
 
     if (window.PointerEvent) {
@@ -598,16 +850,16 @@
     }
   }
 
-  // --- Add Text Box & Attach Listeners ---
   function attachTextboxListeners(textarea) {
     textarea.addEventListener('input', () => {});
-    ['blur', 'focus', 'keyup', 'mouseup'].forEach(evt =>
+    ['blur', 'focus', 'keyup', 'mouseup'].forEach(evt => {
       textarea.addEventListener(evt, () => {
         if (textarea === focusedTextarea) updateStyleControlsPosition();
-      })
-    );
+      });
+    });
   }
 
+  // Add Text Box Button Handler
   addTextBoxBtn.addEventListener('click', () => {
     if (!imageElement) return;
 
@@ -619,11 +871,49 @@
     const textarea = document.createElement('textarea');
     textarea.rows = 3;
     textarea.value = 'Edit text';
+
+    // Apply default styles
+    textarea.style.fontSize = defaultStyles.fontSize;
+    textarea.style.fontFamily = defaultStyles.fontFamily;
+    textarea.style.color = defaultStyles.color;
+    textarea.style.fontWeight = defaultStyles.fontWeight;
+    textarea.style.fontStyle = defaultStyles.fontStyle;
+
     wrapper.appendChild(textarea);
 
     const dragHandle = document.createElement('div');
     dragHandle.className = 'drag-handle';
+    dragHandle.textContent = '●';
     wrapper.appendChild(dragHandle);
+
+    // Buttons container
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'textbox-buttons';
+
+    const dupBtn = document.createElement('button');
+    dupBtn.title = 'Duplicate';
+    dupBtn.textContent = '⎘';
+    dupBtn.addEventListener('click', () => duplicateTextBox(wrapper));
+    btnContainer.appendChild(dupBtn);
+
+    const lockBtn = document.createElement('button');
+    lockBtn.title = 'Lock Text Box';
+    lockBtn.textContent = '🔓';
+    lockBtn.addEventListener('click', () => toggleLockTextBox(wrapper, lockBtn, textarea, dragHandle));
+    btnContainer.appendChild(lockBtn);
+
+    const delBtn = document.createElement('button');
+    delBtn.title = 'Delete';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', () => {
+      if (confirm("Delete this text box?")) {
+        wrapper.remove();
+        hideStyleControls();
+      }
+    });
+    btnContainer.appendChild(delBtn);
+
+    wrapper.appendChild(btnContainer);
 
     zoomableContent.appendChild(wrapper);
     textarea.focus();
@@ -632,7 +922,240 @@
     attachTextboxListeners(textarea);
   });
 
-  // --- Image Upload Handler ---
+  // Duplicate text box
+  function duplicateTextBox(wrapper) {
+    const textarea = wrapper.querySelector('textarea');
+    const newWrapper = document.createElement('div');
+    newWrapper.className = 'textbox-wrapper';
+
+    newWrapper.style.top = (parseFloat(wrapper.style.top) + 20) + 'px';
+    newWrapper.style.left = (parseFloat(wrapper.style.left) + 20) + 'px';
+
+    const newTextarea = document.createElement('textarea');
+    ['fontWeight','fontStyle','fontSize','fontFamily','color'].forEach(styleProp => {
+      newTextarea.style[styleProp] = textarea.style[styleProp];
+    });
+    newTextarea.value = textarea.value;
+    newTextarea.style.width = textarea.style.width;
+    newTextarea.style.height = textarea.style.height;
+
+    newWrapper.appendChild(newTextarea);
+
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'drag-handle';
+    dragHandle.textContent = '●';
+    newWrapper.appendChild(dragHandle);
+
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'textbox-buttons';
+
+    const dupBtn = document.createElement('button');
+    dupBtn.title = 'Duplicate';
+    dupBtn.textContent = '⎘';
+    dupBtn.addEventListener('click', () => duplicateTextBox(newWrapper));
+    btnContainer.appendChild(dupBtn);
+
+    const lockBtn = document.createElement('button');
+    lockBtn.title = 'Lock Text Box';
+    lockBtn.textContent = '🔓';
+    lockBtn.addEventListener('click', () => toggleLockTextBox(newWrapper, lockBtn, newTextarea, dragHandle));
+    btnContainer.appendChild(lockBtn);
+
+    const delBtn = document.createElement('button');
+    delBtn.title = 'Delete';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', () => {
+      if (confirm("Delete this text box?")) {
+        newWrapper.remove();
+        hideStyleControls();
+      }
+    });
+    btnContainer.appendChild(delBtn);
+
+    newWrapper.appendChild(btnContainer);
+
+    zoomableContent.appendChild(newWrapper);
+    makeDraggable(newWrapper, dragHandle);
+    attachTextboxListeners(newTextarea);
+  }
+
+  // Lock/Unlock text box
+  function toggleLockTextBox(wrapper, lockBtn, textarea, dragHandle) {
+    if(wrapper.classList.contains('locked')) {
+      // Unlock
+      wrapper.classList.remove('locked');
+      textarea.removeAttribute('readonly');
+      textarea.style.cursor = 'text';
+      textarea.style.userSelect = 'text';
+      textarea.style.backgroundColor = 'rgba(255,255,255,0.7)';
+      dragHandle.style.cursor = 'grab';
+      dragHandle.style.backgroundColor = '#007bff';
+      lockBtn.textContent = '🔓';
+      lockBtn.title = 'Lock Text Box';
+    } else {
+      // Lock
+      wrapper.classList.add('locked');
+      textarea.setAttribute('readonly', 'readonly');
+      textarea.style.cursor = 'default';
+      textarea.style.userSelect = 'none';
+      textarea.style.backgroundColor = '#eee';
+      dragHandle.style.cursor = 'default';
+      dragHandle.style.backgroundColor = '#999';
+      lockBtn.textContent = '🔒';
+      lockBtn.title = 'Unlock Text Box';
+      if(focusedTextarea === textarea) {
+        focusedTextarea = null;
+        hideStyleControls();
+      }
+    }
+  }
+
+  // Floating toolbar controls event handlers
+  // ... [Same as above; for brevity all event handlers for style buttons here] ...
+  boldBtn.addEventListener('click', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontWeight = focusedTextarea.style.fontWeight === 'bold' ? 'normal' : 'bold';
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+    defaultStyles.fontWeight = focusedTextarea.style.fontWeight;
+    saveDefaultStyles(defaultStyles);
+  });
+  italicBtn.addEventListener('click', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontStyle = focusedTextarea.style.fontStyle === 'italic' ? 'normal' : 'italic';
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+    defaultStyles.fontStyle = focusedTextarea.style.fontStyle;
+    saveDefaultStyles(defaultStyles);
+  });
+  fontSizeSelect.addEventListener('change', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontSize = fontSizeSelect.value;
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+    defaultStyles.fontSize = fontSizeSelect.value;
+    saveDefaultStyles(defaultStyles);
+  });
+  fontFamilySelect.addEventListener('change', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontFamily = fontFamilySelect.value;
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+    defaultStyles.fontFamily = fontFamilySelect.value;
+    saveDefaultStyles(defaultStyles);
+  });
+  fontColorPicker.addEventListener('input', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.color = fontColorPicker.value;
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+    defaultStyles.color = fontColorPicker.value;
+    saveDefaultStyles(defaultStyles);
+  });
+
+  zoomableContent.addEventListener('focusin', e => {
+    if (e.target.tagName === 'TEXTAREA' && !e.target.parentElement.classList.contains('locked')) {
+      focusedTextarea = e.target;
+      updateStyleControlsPosition();
+      container.addEventListener('scroll', updateStyleControlsPosition);
+      window.addEventListener('resize', updateStyleControlsPosition);
+    }
+  });
+  zoomableContent.addEventListener('focusout', e => {
+    setTimeout(() => {
+      const active = document.activeElement;
+      if (focusedTextarea && (active === focusedTextarea || styleControls.contains(active))) return;
+      focusedTextarea = null;
+      hideStyleControls();
+      container.removeEventListener('scroll', updateStyleControlsPosition);
+      window.removeEventListener('resize', updateStyleControlsPosition);
+    }, 0);
+  });
+
+  // Snap toggle logic
+  snapToggleBtn.addEventListener('click', () => {
+    snapEnabled = !snapEnabled;
+    gridOverlay.style.display = snapEnabled ? 'block' : 'none';
+    snapToggleBtn.textContent = snapEnabled ? 'Disable Snap to Grid' : 'Enable Snap to Grid';
+  });
+
+  // Draggable implementation w/ snap and lock check
+  function getPointerPos(e) {
+    if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.clientX !== undefined && e.clientY !== undefined) return { x: e.clientX, y: e.clientY };
+    return null;
+  }
+  function makeDraggable(wrapper, handle) {
+    let isDragging = false;
+    let startX, startY;
+    let origX, origY;
+
+    function dragStart(e) {
+      if(wrapper.classList.contains('locked')) return;
+      e.preventDefault();
+      const pointer = getPointerPos(e);
+      if (!pointer) return;
+      isDragging = true;
+      startX = pointer.x;
+      startY = pointer.y;
+      const rect = wrapper.getBoundingClientRect();
+      origX = rect.left;
+      origY = rect.top;
+      handle.style.cursor = 'grabbing';
+      wrapper.style.zIndex = 9999;
+    }
+    function dragMove(e) {
+      if (!isDragging) return;
+      e.preventDefault();
+      const pointer = getPointerPos(e);
+      if (!pointer) return;
+      let dx = pointer.x - startX;
+      let dy = pointer.y - startY;
+      const containerRect = zoomableContent.getBoundingClientRect();
+      let newLeft = origX + dx - containerRect.left;
+      let newTop = origY + dy - containerRect.top;
+      if(snapEnabled) {
+        newLeft = Math.round(newLeft / gridSize) * gridSize;
+        newTop = Math.round(newTop / gridSize) * gridSize;
+      }
+      newLeft = Math.max(0, Math.min(newLeft, containerRect.width - wrapper.offsetWidth));
+      newTop = Math.max(0, Math.min(newTop, containerRect.height - wrapper.offsetHeight));
+      wrapper.style.left = newLeft + 'px';
+      wrapper.style.top = newTop + 'px';
+      if (focusedTextarea && focusedTextarea.parentElement === wrapper) updateStyleControlsPosition();
+    }
+    function dragEnd() {
+      if (!isDragging) return;
+      isDragging = false;
+      handle.style.cursor = 'grab';
+      wrapper.style.zIndex = '';
+    }
+    if (window.PointerEvent) {
+      handle.style.touchAction = 'none';
+      handle.addEventListener('pointerdown', dragStart);
+      window.addEventListener('pointermove', dragMove);
+      window.addEventListener('pointerup', dragEnd);
+      window.addEventListener('pointercancel', dragEnd);
+    } else {
+      handle.addEventListener('mousedown', dragStart);
+      handle.addEventListener('touchstart', dragStart, { passive: false });
+      window.addEventListener('mousemove', dragMove);
+      window.addEventListener('touchmove', dragMove, { passive: false });
+      window.addEventListener('mouseup', dragEnd);
+      window.addEventListener('touchend', dragEnd);
+      window.addEventListener('touchcancel', dragEnd);
+    }
+  }
+  function attachTextboxListeners(textarea) {
+    textarea.addEventListener('input', () => {});
+    ['blur', 'focus', 'keyup', 'mouseup'].forEach(evt => {
+      textarea.addEventListener(evt, () => {
+        if (textarea === focusedTextarea) updateStyleControlsPosition();
+      });
+    });
+  }
+
+  // Image Upload
   imageUploader.addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -646,7 +1169,6 @@
       imageElement.style.position = 'relative';
       imageElement.style.maxWidth = '100%';
       imageElement.style.height = 'auto';
-
       imageElement.onload = () => {
         zoomableContent.appendChild(imageElement);
         showControls();
@@ -655,261 +1177,239 @@
     reader.readAsDataURL(file);
   });
 
-  // --- Color helper ---
-  function rgbToHex(rgb) {
-    if (!rgb) return null;
-    const result = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
-    if (!result) return null;
-    return "#" +
-      ("0" + parseInt(result[1], 10).toString(16)).slice(-2) +
-      ("0" + parseInt(result[2], 10).toString(16)).slice(-2) +
-      ("0" + parseInt(result[3], 10).toString(16)).slice(-2);
-  }
-
-  // --- Download handler with format selection ---
-  downloadBtn.addEventListener('click', async () => {
-    if (!imageElement) {
+  // Download popup handlers
+  downloadBtn.addEventListener('click', () => {
+    if(!imageElement) {
       alert('Please upload or load a template first.');
       return;
     }
-
-    const format = prompt('Enter export format: png, jpeg, or pdf', 'png');
-    if (!format) return;
-
-    const fmt = format.toLowerCase();
-
-    if (fmt === 'png' || fmt === 'jpeg' || fmt === 'jpg') {
-      await exportImage(fmt === 'jpg' ? 'jpeg' : fmt);
-    } else if (fmt === 'pdf') {
-      await exportPdf();
-    } else {
-      alert('Unsupported format. Please enter png, jpeg, or pdf.');
+    downloadFormatPopup.style.display = 'block';
+  });
+  cancelDownloadPopup.addEventListener('click', () => {
+    downloadFormatPopup.style.display = 'none';
+  });
+  confirmDownloadBtn.addEventListener('click', () => {
+    const selected = downloadFormatPopup.querySelector('input[name="exportFormat"]:checked');
+    if(!selected) {
+      alert('Please select an export format.');
+      return;
     }
+    downloadFormatPopup.style.display = 'none';
+    if(selected.value === 'pdf') exportPdfPopup();
+    else exportImage(selected.value);
   });
 
-  async function exportImage(type) {
+  // Export image (PNG or JPEG)
+  function exportImage(type) {
     const canvas = document.createElement('canvas');
     canvas.width = imageElement.naturalWidth;
     canvas.height = imageElement.naturalHeight;
     const ctx = canvas.getContext('2d');
-
     ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
-
     const imageRect = imageElement.getBoundingClientRect();
     const zoomableRect = zoomableContent.getBoundingClientRect();
-
     const scaleX = canvas.width / imageRect.width;
     const scaleY = canvas.height / imageRect.height;
-
     zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
       const textarea = wrapper.querySelector('textarea');
+      if(wrapper.classList.contains('locked')) return; // skip locked textboxes from editing text draw (if you want to include, remove this line)
       const style = window.getComputedStyle(textarea);
-
       const fontSize = parseInt(style.fontSize);
       const fontFamily = style.fontFamily;
       const fontWeight = style.fontWeight;
       const fontStyle = style.fontStyle;
       const color = style.color || 'black';
-
       const wrapperLeft = parseFloat(wrapper.style.left || 0);
       const wrapperTop = parseFloat(wrapper.style.top || 0);
-
       const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
       const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
-
       const x = offsetX * scaleX;
       const y = offsetY * scaleY;
-
       ctx.fillStyle = color;
       ctx.font = `${fontStyle} ${fontWeight} ${fontSize * scaleX}px ${fontFamily}`;
       ctx.textBaseline = 'top';
-
       const lines = textarea.value.split('\n');
       const lineHeight = fontSize * 1.2 * scaleY;
-
-      lines.forEach((line, i) => {
-        ctx.fillText(line, x, y + i * lineHeight);
-      });
+      lines.forEach((line,i) => ctx.fillText(line, x, y + i*lineHeight));
     });
-
     const link = document.createElement('a');
     link.download = `edited-image.${type}`;
-    link.href = type === 'png' ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.95);
+    link.href = (type==='png') ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.95);
     document.body.appendChild(link);
     link.click();
     link.remove();
   }
 
-  async function exportPdf() {
-    try {
-      // As no external libraries are allowed, we implement a simple PDF export:
-      // Export image + text as an image then open in new tab for user to save as PDF manually
-      alert('PDF export will open a new tab with the current image. Please use your browser print-to-PDF feature.');
-      const canvas = document.createElement('canvas');
-      canvas.width = imageElement.naturalWidth;
-      canvas.height = imageElement.naturalHeight;
-      const ctx = canvas.getContext('2d');
-
-      ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
-
-      const imageRect = imageElement.getBoundingClientRect();
-      const zoomableRect = zoomableContent.getBoundingClientRect();
-
-      const scaleX = canvas.width / imageRect.width;
-      const scaleY = canvas.height / imageRect.height;
-
-      zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
-        const textarea = wrapper.querySelector('textarea');
-        const style = window.getComputedStyle(textarea);
-
-        const fontSize = parseInt(style.fontSize);
-        const fontFamily = style.fontFamily;
-        const fontWeight = style.fontWeight;
-        const fontStyle = style.fontStyle;
-        const color = style.color || 'black';
-
-        const wrapperLeft = parseFloat(wrapper.style.left || 0);
-        const wrapperTop = parseFloat(wrapper.style.top || 0);
-
-        const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
-        const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
-
-        const x = offsetX * scaleX;
-        const y = offsetY * scaleY;
-
-        ctx.fillStyle = color;
-        ctx.font = `${fontStyle} ${fontWeight} ${fontSize * scaleX}px ${fontFamily}`;
-        ctx.textBaseline = 'top';
-
-        const lines = textarea.value.split('\n');
-        const lineHeight = fontSize * 1.2 * scaleY;
-
-        lines.forEach((line, i) => {
-          ctx.fillText(line, x, y + i * lineHeight);
-        });
-      });
-
-      const dataUrl = canvas.toDataURL('image/png');
-      const newWindow = window.open();
-      if (newWindow) {
-        newWindow.document.write(`<img src="${dataUrl}" style="width:100%;">`);
-        newWindow.document.title = "Print to PDF";
-      } else {
-        alert("Popup blocked. Please allow popups to export PDF.");
-      }
-    } catch (err) {
-      alert('PDF export not supported in this browser.');
-    }
-  }
-
-  // --- Share button (share as JPEG) ---
-  shareBtn.addEventListener('click', () => {
-    shareImage('jpeg');
-  });
-
-  function shareImage(type = 'jpeg') {
+  // PDF Export Popup (print)
+  function exportPdfPopup() {
     if (!imageElement) {
-      alert("Please upload or load a template first.");
+      alert('Please upload or load a template first.');
       return;
     }
-
     const canvas = document.createElement('canvas');
     canvas.width = imageElement.naturalWidth;
     canvas.height = imageElement.naturalHeight;
     const ctx = canvas.getContext('2d');
-
     ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
-
     const imageRect = imageElement.getBoundingClientRect();
     const zoomableRect = zoomableContent.getBoundingClientRect();
-
     const scaleX = canvas.width / imageRect.width;
     const scaleY = canvas.height / imageRect.height;
-
     zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
       const textarea = wrapper.querySelector('textarea');
       const style = window.getComputedStyle(textarea);
-
       const fontSize = parseInt(style.fontSize);
       const fontFamily = style.fontFamily;
       const fontWeight = style.fontWeight;
       const fontStyle = style.fontStyle;
       const color = style.color || 'black';
-
       const wrapperLeft = parseFloat(wrapper.style.left || 0);
       const wrapperTop = parseFloat(wrapper.style.top || 0);
-
       const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
       const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
-
       const x = offsetX * scaleX;
       const y = offsetY * scaleY;
-
       ctx.fillStyle = color;
       ctx.font = `${fontStyle} ${fontWeight} ${fontSize * scaleX}px ${fontFamily}`;
       ctx.textBaseline = 'top';
-
       const lines = textarea.value.split('\n');
       const lineHeight = fontSize * 1.2 * scaleY;
-
-      lines.forEach((line, i) => {
-        ctx.fillText(line, x, y + i * lineHeight);
-      });
+      lines.forEach((line,i) => ctx.fillText(line, x, y + i * lineHeight));
     });
+    const dataUrl = canvas.toDataURL('image/png');
+    const printWindow = window.open('', '_blank');
+    if(!printWindow) {
+      alert("Popup blocked. Please allow popups for this site to export PDF.");
+      return;
+    }
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Export as PDF - Print and Save</title>
+          <style>
+            body, html {
+              margin: 0; padding: 0; height: 100%;
+            }
+            img {
+              max-width: 100%;
+              height: auto;
+              display: block;
+              margin: 0 auto;
+              page-break-after: avoid;
+            }
+            @media print {
+              body {
+                margin: 0;
+              }
+              img {
+                max-width: 100%;
+                height: auto;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <img src="${dataUrl}" alt="Image to Export as PDF" />
+          <script>
+            window.onload = () => { window.focus(); window.print(); }
+          <\/script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }
 
+  // Share JPEG button logic with fallback to download
+  shareBtn.addEventListener('click', () => {
+    if(!imageElement) {
+      alert("Please upload or load a template first.");
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = imageElement.naturalWidth;
+    canvas.height = imageElement.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+    const imageRect = imageElement.getBoundingClientRect();
+    const zoomableRect = zoomableContent.getBoundingClientRect();
+    const scaleX = canvas.width / imageRect.width;
+    const scaleY = canvas.height / imageRect.height;
+    zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
+      const textarea = wrapper.querySelector('textarea');
+      const style = window.getComputedStyle(textarea);
+      const fontSize = parseInt(style.fontSize);
+      const fontFamily = style.fontFamily;
+      const fontWeight = style.fontWeight;
+      const fontStyle = style.fontStyle;
+      const color = style.color || 'black';
+      const wrapperLeft = parseFloat(wrapper.style.left || 0);
+      const wrapperTop = parseFloat(wrapper.style.top || 0);
+      const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
+      const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
+      const x = offsetX * scaleX;
+      const y = offsetY * scaleY;
+      ctx.fillStyle = color;
+      ctx.font = `${fontStyle} ${fontWeight} ${fontSize * scaleX}px ${fontFamily}`;
+      ctx.textBaseline = 'top';
+      const lines = textarea.value.split('\n');
+      const lineHeight = fontSize * 1.2 * scaleY;
+      lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
+    });
     canvas.toBlob(blob => {
-      if (navigator.canShare && navigator.canShare({ files: [new File([blob], `template.${type}`, { type: blob.type })] })) {
-        const file = new File([blob], `template.${type}`, { type: blob.type });
+      if(navigator.canShare && navigator.canShare({files:[new File([blob],'template.jpeg',{type:'image/jpeg'})]})) {
+        const file = new File([blob],'template.jpeg',{type:'image/jpeg'});
         navigator.share({
           files: [file],
           title: 'Shared Image Template',
           text: 'Check out this image template.'
-        }).catch(err => {
-          console.error('Sharing failed:', err);
-          alert('Sharing failed or was cancelled.');
-        });
+        }).catch(err => alert('Sharing failed or cancelled.'));
       } else {
-        // Fallback: download the image
+        // fallback download
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `template.${type}`;
+        link.download = 'template.jpeg';
         document.body.appendChild(link);
         link.click();
         link.remove();
-        alert('Sharing not supported on this device. The image has been downloaded instead.');
+        alert('Sharing not supported, image downloaded instead.');
       }
-    }, 'image/jpeg', 0.95);
-  }
+    },'image/jpeg',0.95);
+  });
 
-  // --- Helpers & Initialization ---
-
+  // rgb -> hex helper
   function rgbToHex(rgb) {
-    if (!rgb) return null;
-    const result = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
-    if (!result) return null;
-    return "#" +
-      ("0" + parseInt(result[1], 10).toString(16)).slice(-2) +
-      ("0" + parseInt(result[2], 10).toString(16)).slice(-2) +
-      ("0" + parseInt(result[3], 10).toString(16)).slice(-2);
+    if(!rgb) return null;
+    const res = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if(!res) return null;
+    return "#" + [res[1],res[2],res[3]].map(x => ("0"+parseInt(x).toString(16)).slice(-2)).join('');
   }
 
-  function attachTextboxListeners(textarea) {
-    textarea.addEventListener('input', () => {});
-    ['blur', 'focus', 'keyup', 'mouseup'].forEach(evt =>
-      textarea.addEventListener(evt, () => {
-        if (textarea === focusedTextarea) updateStyleControlsPosition();
-      })
-    );
-  }
+  // New Project Button
+  clearAllBtn.addEventListener('click', () => {
+    if(confirm('Clear all text boxes and remove image?')) {
+      zoomableContent.innerHTML = '';
+      imageElement = null;
+      controls.style.display = 'none';
+      savedTemplatesContainer.style.display = 'none';
+      toggleSavedTemplatesBtn.style.display = 'none';
+      snapToggleBtn.style.display = 'none';
+      clearAllBtn.style.display = 'none';
+      styleControls.classList.remove('visible');
+      downloadBtn.disabled = true;
+      shareBtn.disabled = true;
+      saveTemplateBtn.disabled = true;
+      templateNameInput.value = '';
+    }
+  });
 
-  // --- Initialize saved templates list ---
+  // Initialization
   renderSavedTemplatesList();
   updateSaveButtonState();
   updateDownloadShareButtonState();
 
 </script>
 
-<p><small>Drag the <b>blue dot</b> to move text boxes. Resize them using the textarea corner handle. Click inside a box to edit text and see style controls above it (bold, italic, font size, font family, color). Use your device’s native zoom. Text editing works normally.</small></p>
+<p><small>Drag the <b>blue dot</b> to move text boxes. Resize them using the textarea corner handle. Lock boxes to prevent editing or moving. Click inside a box to edit text and see style controls above it (bold, italic, font size, font family, color). Use your device’s native zoom. Text editing works normally.</small></p>
 
 </body>
 </html>
