@@ -1,804 +1,270 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Template Box Editor with Inline Editing and Lock</title>
+<meta charset="UTF-8">
+<title>Rich Text Template Box Editor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root {
-    --blue: #2a64d9;
-    --blue-dark: #1f4cb8;
-    --yellow: #ffc107;
-    --gray-light: #eff2f7;
-    --gray-dark: #333f58;
-    --bg: #f6f9fc;
-    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  }
-  * {
-    box-sizing: border-box;
-  }
-  body {
-    margin: 0;
-    font-family: var(--font-family);
-    background: var(--bg);
-    color: var(--gray-dark);
-    display: flex;
-    justify-content: center;
-    padding: 20px;
-  }
-  .container {
-    max-width: 980px;
-    width: 100%;
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 0 25px rgba(34,50,99,0.1);
-    padding: 24px 32px 36px;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-  }
-  h1 {
-    text-align: center;
-    color: var(--blue);
-    margin: 0;
-    font-size: 2rem;
-    font-weight: 700;
-  }
-  .controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px 24px;
-    justify-content: center;
-    align-items: center;
-  }
-  .controls > * {
-    font-size: 1rem;
-    padding: 12px 18px;
-    border-radius: 8px;
-    border: 1.5px solid var(--gray-light);
-    background: var(--gray-light);
-    transition: border-color 0.3s, background-color 0.3s;
-    min-width: 140px;
-  }
-  .controls input[type="file"] {
-    cursor: pointer;
-  }
-  .controls input[type="text"] {
-    flex-grow: 1;
-    max-width: 280px;
-    border: 1.5px solid var(--gray-light);
-  }
-  .controls button {
-    background: var(--blue);
-    color: white;
-    border: none;
-    cursor: pointer;
-    min-width: 130px;
-    font-weight: 600;
-    transition: background-color 0.25s ease-in-out;
-  }
-  .controls button:hover,
-  .controls button:focus {
-    background: var(--blue-dark);
-    outline: none;
-  }
-  #inputFields {
-    display: none; /* Hidden because editing will be inline */
-  }
-  #generateTextBtn {
-    margin: 0 auto;
-    padding: 14px 28px;
-    border-radius: 12px;
-    background: var(--blue);
-    color: white;
-    font-weight: 700;
-    border: none;
-    cursor: pointer;
-    width: max-content;
-    display: block;
-    font-size: 1.1rem;
-    transition: background-color 0.25s;
-  }
-  #generateTextBtn:hover,
-  #generateTextBtn:focus {
-    background: var(--blue-dark);
-    outline: none;
-  }
-  #previewContainer {
-    position: relative;
-    border: 3px solid #aac4ff;
-    border-radius: 14px;
-    background: white;
-    max-width: 100%;
-    overflow: auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 360px;
-  }
-  #templateCanvas {
-    border-radius: 14px;
-    background: white;
-    max-width: 100%;
-    max-height: 480px;
-    box-shadow: 0 3px 20px rgba(34, 50, 99, 0.1);
-    display: block;
-  }
-  .box-overlay {
-    position: absolute;
-    border: 3px dashed var(--yellow);
-    border-radius: 14px;
-    background: rgba(255, 193, 7, 0.1);
-    cursor: grab;
-    user-select: none;
-    touch-action: none;
-    min-width: 60px;
-    min-height: 30px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding: 8px 36px 8px 12px;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #444;
-    overflow: auto;
-  }
-  .box-overlay.selected {
-    border-color: var(--blue);
-    box-shadow: 0 0 20px 4px rgba(39, 110, 241, 0.35);
-    cursor: grabbing;
-  }
-  .box-overlay.locked {
-    border-color: #ff9800;
-    background: rgba(255, 152, 0, 0.15);
-    cursor: default;
-  }
-  .box-overlay.locked.selected {
-    box-shadow: 0 0 16px 4px rgba(255, 152, 0, 0.5);
-  }
-
-  .box-content {
-    width: 100%;
-    height: 100%;
-    outline: none;
-    white-space: pre-wrap;
-    overflow-wrap: break-word;
-    overflow-y: auto;
-    cursor: text;
-    user-select: text;
-    font-family: inherit;
-    font-weight: 600;
-    font-size: 1rem;
-    line-height: 1.3;
-  }
-
-  /* Lock button */
-  .lock-btn {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 26px;
-    height: 26px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    z-index: 20;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    filter: grayscale(100%) brightness(80%);
-    transition: filter 0.25s;
-  }
-  .lock-btn:hover,
-  .lock-btn:focus {
-    filter: none;
-    outline: none;
-  }
-  /* Lock icon */
-  .lock-btn svg {
-    fill: #444;
-    width: 18px;
-    height: 18px;
-  }
-  .box-overlay.locked .lock-btn svg {
-    fill: #ff9800;
-  }
-
-  /* Resize grip */
-  .resize-grip {
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    background: var(--yellow);
-    border-radius: 50%;
-    border: 3px solid white;
-    box-shadow: 0 0 8px rgba(255, 193, 7, 0.7);
-    right: -12px;
-    bottom: -12px;
-    cursor: nwse-resize;
-    z-index: 20;
-    touch-action: none;
-    user-select: none;
-  }
-
-  .buttons-row {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    flex-wrap: wrap;
-    margin-top: 14px;
-  }
-  .btn-main {
-    font-size: 1.2rem;
-    font-weight: 700;
-    border-radius: 14px;
-    border: none;
-    padding: 16px 42px;
-    background: var(--blue);
-    color: white;
-    cursor: pointer;
-    min-width: 200px;
-    box-shadow: 0 6px 22px rgba(39, 110, 241, 0.26);
-    transition: background-color 0.3s;
-  }
-  .btn-main:hover,
-  .btn-main:focus {
-    background: var(--blue-dark);
-    outline: none;
-  }
-
-  /* Template list */
-  .template-list {
-    margin: 0 auto;
-    max-width: 360px;
-    background: #d8e5ff;
-    border-radius: 14px;
-    border: 1.8px solid #a9c9ff;
-    box-shadow: 0 3px 12px #a9c9ff47;
-    padding: 14px 22px 10px;
-    display: none;
-  }
-  .template-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #ecf3ff;
-    color: var(--blue);
-    border-radius: 8px;
-    padding: 8px 14px;
-    margin-bottom: 10px;
-    font-weight: 700;
-    font-size: 1rem;
-  }
-  .template-item button {
-    border-radius: 8px;
-    border: none;
-    padding: 6px 12px;
-    font-size: 1rem;
-    cursor: pointer;
-    font-weight: 700;
-    color: white;
-    line-height: 1;
-  }
-  .template-item button.loadBtn {
-    background: var(--blue);
-    margin-left: 10px;
-  }
-  .template-item button.delBtn {
-    background: #dc3545;
-    margin-left: 10px;
-  }
-
-  /* Toast message */
-  #toastMessage {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--blue);
-    color: #fff;
-    padding: 14px 30px;
-    border-radius: 26px;
-    font-weight: 700;
-    font-size: 1.1rem;
-    box-shadow: 0 2px 22px rgba(39, 110, 241, 0.5);
-    opacity: 0;
-    transition: opacity 0.35s ease;
-    z-index: 9999;
-    pointer-events: none;
-  }
-
-  @media (max-width: 850px) {
-    .container {
-      margin: 10px;
-      padding: 18px 22px 26px;
-    }
-    .controls {
-      gap: 14px 20px;
-      justify-content: space-around;
-    }
-    .template-list {
-      max-width: 100vw;
-      padding: 10px 16px;
-    }
-  }
+body { font-family: "Segoe UI", Arial, sans-serif; background: #f2f4f9; margin: 0; }
+.container { max-width: 920px; margin: 24px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 32px #0002; padding: 24px; }
+h2 { color: #255fd3; text-align: center; }
+.controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 18px; }
+.controls input[type="file"], .controls input[type="text"] { padding: 10px; border-radius: 7px; border: 1px solid #bcd; }
+.controls button { background: #255fd3; color: #fff; padding: 10px 18px; border-radius: 7px; border: none; cursor: pointer; font-weight: bold; }
+.controls button:hover { background: #15396a; }
+#previewContainer { position: relative; border: 3px solid #b3c7ec; border-radius: 12px; background: #f5f8ff; margin: 0 auto 24px; max-width: 100%; min-height: 320px; }
+#templateCanvas { border-radius: 11px; max-width: 100%; box-shadow: 0 2px 18px #e7eef9; display: block; background: white; }
+.box-overlay {
+  position: absolute; border: 2px dashed #ffc107;
+  background: rgba(255,210,7,0.08); border-radius: 9px;
+  min-width: 70px; min-height: 34px; cursor: move; user-select: none; z-index: 9;
+  box-sizing: border-box; display: flex; flex-direction: column; padding: 4px 2px 2px 6px;
+}
+.box-overlay.selected { border-color: #276ef1; box-shadow: 0 0 18px 3px #276ef133; z-index: 31; }
+.resize-grip {
+  position: absolute; right: -9px; bottom: -9px; width: 16px; height: 16px;
+  background: #ffc107; border-radius: 50%; border: 2px solid #fff;
+  cursor: nwse-resize; z-index: 9; touch-action: none;
+}
+.box-style-bar {
+  display: flex; gap: 7px; align-items: center; margin-bottom: 1px; min-height:28px;
+  padding: 0 2px 0 0;
+}
+.box-style-bar select, .box-style-bar button {
+  font-size: 1rem; border-radius: 4px; border: 1px solid #aac4ff; background: #eaf3ff; color: #222;
+  padding: 1px 7px; cursor: pointer; outline: none; height: 26px; line-height: 1.2;
+}
+.box-style-bar button { width: 28px; }
+.box-style-bar button.active { background: #276ef1; color: #fff; }
+.box-editor-text {
+  flex: 1 0 0; width: 100%; min-height: 20px; background: transparent; border: none; outline: none;
+  resize: none; font-family: inherit; font-size: 18px; color: #222; font-weight: 400; 
+  white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; line-height: 1.26;
+  caret-color: #276ef1;
+  user-select: text;
+}
 </style>
 </head>
 <body>
-<div class="container" role="main" aria-label="Template Box Editor">
-  <h1>Template Box Editor</h1>
-  <section class="controls" role="region" aria-label="Control Panel">
-    <input type="file" accept="image/*" id="imageUpload" aria-label="Upload Image" />
-    <input type="text" id="boxName" aria-label="Box Name Input" placeholder="New Box Name" autocomplete="off" />
-    <button id="addBoxBtn" aria-label="Add Box">Add Box</button>
-    <input type="text" id="templateName" aria-label="Template Name Input" placeholder="Template Name" autocomplete="off" />
-    <button id="saveTemplateBtn" aria-label="Save Template">Save Template</button>
-    <button id="loadTemplatesBtn" aria-label="Load Templates">Load Templates</button>
-  </section>
-
-  <button id="generateTextBtn" aria-label="Generate Text">Generate Text</button>
-
-  <section id="previewContainer" aria-label="Image Preview Panel" tabindex="0" style="outline:none;">
+<div class="container">
+  <h2>Template Box Editor (Rich Text, Download-Ready)</h2>
+  <div class="controls">
+    <input type="file" accept="image/*" id="imageUpload">
+    <input type="text" placeholder="New Box Name" id="boxName" autocomplete="off">
+    <button id="addBoxBtn">Add Box</button>
+    <button id="downloadBtn">Download Image</button>
+    <button id="applyBtn">Apply To Canvas</button>
+  </div>
+  <div id="previewContainer">
     <canvas id="templateCanvas"></canvas>
-  </section>
-
-  <section class="buttons-row" role="region" aria-label="Action Buttons">
-    <button class="btn-main" id="downloadBtn" aria-label="Download Image">Download Image</button>
-  </section>
-
-  <section class="template-list" id="templateList" aria-label="Saved Templates List"></section>
+  </div>
 </div>
 
 <script>
-(() => {
+(function() {
   const imageUpload = document.getElementById('imageUpload');
   const boxNameInput = document.getElementById('boxName');
   const addBoxBtn = document.getElementById('addBoxBtn');
-  const templateNameInput = document.getElementById('templateName');
-  const saveTemplateBtn = document.getElementById('saveTemplateBtn');
-  const loadTemplatesBtn = document.getElementById('loadTemplatesBtn');
-  const generateTextBtn = document.getElementById('generateTextBtn');
-  const templateList = document.getElementById('templateList');
   const downloadBtn = document.getElementById('downloadBtn');
+  const applyBtn = document.getElementById('applyBtn');
   const previewContainer = document.getElementById('previewContainer');
   const canvas = document.getElementById('templateCanvas');
   const ctx = canvas.getContext('2d');
 
-  let image = new Image();
-  let boxes = [];
-  let selectedBox = null;
+  let image = new Image(), boxes = [], selectedBox = null;
 
-  // Toast message helper
-  function showToast(msg) {
-    if (document.getElementById('toastMessage')) return;
-    const t = document.createElement('div');
-    t.id = 'toastMessage';
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(() => { t.style.opacity = '1'; }, 10);
-    setTimeout(() => {
-      t.style.opacity = '0';
-      setTimeout(() => t.remove(), 300);
-    }, 1800);
-  }
-
-  // Draw image and all text boxes on canvas
   function drawCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (!image.src) return;
-    ctx.drawImage(image, 0, 0);
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
     boxes.forEach(box => {
       ctx.save();
       ctx.translate(box.left, box.top);
-
       ctx.beginPath();
       ctx.rect(0, 0, box.width, box.height);
       ctx.clip();
-
-      ctx.fillStyle = '#222';
-      const fs = box.styles?.fontSize || 18;
-      ctx.font = `${box.styles?.italic ? 'italic ' : ''}${box.styles?.bold ? 'bold ' : ''}${fs}px "Segoe UI", Arial, sans-serif`;
+      let fStyle = '';
+      if (box.styles.italic) fStyle += 'italic ';
+      if (box.styles.bold) fStyle += 'bold ';
+      const fontSize = box.styles.fontSize;
+      ctx.font = `${fStyle}${fontSize}px Arial, sans-serif`;
       ctx.textBaseline = 'top';
-      ctx.textAlign = box.styles?.align || 'left';
-
-      const padding = 8;
-      const lineHeight = fs * 1.25;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#222';
+      const padding = 5, lineHeight = fontSize * 1.22;
       const lines = (box.text || '').split('\n');
-      for (let i=0; i < lines.length; i++) {
-        const line = lines[i];
+      for (let i = 0; i < lines.length; i++) {
         const y = padding + i * lineHeight;
         if (y + lineHeight > box.height - padding) break;
-
-        let x;
-        if (ctx.textAlign === 'left') x = padding;
-        else if (ctx.textAlign === 'center') x = box.width/2;
-        else if (ctx.textAlign === 'right') x = box.width - padding;
-
-        ctx.fillText(line, x, y, box.width - 2 * padding);
+        ctx.fillText(lines[i], padding, y, box.width - 2 * padding);
       }
       ctx.restore();
     });
   }
 
-  // Create draggable, resizable overlays with inline contenteditable text and lock button
   function createBoxOverlays() {
-    // Remove old overlays
     document.querySelectorAll('.box-overlay').forEach(el => el.remove());
-
     boxes.forEach(box => {
       const el = document.createElement('div');
-      el.className = 'box-overlay' + (selectedBox && selectedBox.name === box.name ? ' selected' : '');
-      if (box.locked) el.classList.add('locked');
-      el.style.left = box.left + 'px';
-      el.style.top = box.top + 'px';
-      el.style.width = box.width + 'px';
-      el.style.height = box.height + 'px';
-      el.dataset.name = box.name;
-      el.setAttribute('tabindex', '0');
-      el.title = box.name;
+      el.className = 'box-overlay' + (selectedBox && box === selectedBox ? ' selected' : '');
+      el.style.left = box.left + 'px'; el.style.top = box.top + 'px';
+      el.style.width = box.width + 'px'; el.style.height = box.height + 'px';
+      el.tabIndex = 0;
 
-      // Contenteditable div for text inline editing
-      const contentDiv = document.createElement('div');
-      contentDiv.className = 'box-content';
-      contentDiv.contentEditable = 'true';
-      contentDiv.spellcheck = false;
-      contentDiv.textContent = box.text || '';
-      el.appendChild(contentDiv);
+      // Toolbar
+      let styleBar = document.createElement('div');
+      styleBar.className = 'box-style-bar';
+      styleBar.style.display = (selectedBox === box) ? 'flex' : 'none';
 
-      // Lock/unlock toggle button
-      const lockBtn = document.createElement('button');
-      lockBtn.className = 'lock-btn';
-      lockBtn.setAttribute('aria-label', box.locked ? 'Unlock box' : 'Lock box');
-      lockBtn.title = box.locked ? 'Unlock box' : 'Lock box';
-      lockBtn.innerHTML = box.locked ? unlockedIconSVG() : lockedIconSVG();
-      el.appendChild(lockBtn);
+      let boldBtn = document.createElement('button');
+      boldBtn.innerHTML = '<b>B</b>';
+      boldBtn.classList.toggle('active', box.styles.bold);
+      boldBtn.onclick = () => {
+        box.styles.bold = !box.styles.bold;
+        boldBtn.classList.toggle('active', box.styles.bold);
+        textDiv.style.fontWeight = box.styles.bold ? 'bold' : '';
+      };
+      let italicBtn = document.createElement('button');
+      italicBtn.innerHTML = '<i>I</i>';
+      italicBtn.classList.toggle('active', box.styles.italic);
+      italicBtn.onclick = () => {
+        box.styles.italic = !box.styles.italic;
+        italicBtn.classList.toggle('active', box.styles.italic);
+        textDiv.style.fontStyle = box.styles.italic ? 'italic' : '';
+      };
+      let sizeSel = document.createElement('select');
+      [14,16,18,20,22,24,32].forEach(sz => {
+        let o = document.createElement('option'); o.value=sz; o.innerText=sz+'px';
+        if (sz === box.styles.fontSize) o.selected = true;
+        sizeSel.appendChild(o);
+      });
+      sizeSel.onchange = () => {
+        box.styles.fontSize = +sizeSel.value;
+        textDiv.style.fontSize = sizeSel.value + 'px';
+      };
 
-      // Resize grip if unlocked
-      let resizeGrip = null;
-      if (!box.locked) {
-        resizeGrip = document.createElement('div');
-        resizeGrip.className = 'resize-grip';
-        el.appendChild(resizeGrip);
-      }
+      styleBar.appendChild(boldBtn);
+      styleBar.appendChild(italicBtn);
+      styleBar.appendChild(sizeSel);
+      el.appendChild(styleBar);
 
-      // Events for drag
-      addDragListeners(el, box);
-
-      // Events for resize if unlocked
-      if (!box.locked) {
-        addResizeListeners(resizeGrip, box, el);
-      }
-
-      // Lock button toggle event
-      lockBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        box.locked = !box.locked;
-        // Update lock button icon & accessibility
-        lockBtn.innerHTML = box.locked ? unlockedIconSVG() : lockedIconSVG();
-        lockBtn.setAttribute('aria-label', box.locked ? 'Unlock box' : 'Lock box');
-        lockBtn.title = box.locked ? 'Unlock box' : 'Lock box';
-
-        // Update overlay styles
-        if (box.locked) {
-          el.classList.add('locked');
-          // Remove resize grip
-          if (resizeGrip && resizeGrip.parentNode === el) el.removeChild(resizeGrip);
-          // Re-enable cursor
-          el.style.cursor = 'default';
-        } else {
-          el.classList.remove('locked');
-          // Add resize grip back
-          if (!resizeGrip) {
-            resizeGrip = document.createElement('div');
-            resizeGrip.className = 'resize-grip';
-            el.appendChild(resizeGrip);
-            addResizeListeners(resizeGrip, box, el);
-          }
-          el.style.cursor = 'grab';
+      // Editable text area
+      let textDiv = document.createElement('div');
+      textDiv.className = 'box-editor-text';
+      textDiv.contentEditable = true;
+      textDiv.spellcheck = false;
+      textDiv.innerText = box.text || '';
+      textDiv.style.fontWeight = box.styles.bold ? 'bold' : '';
+      textDiv.style.fontStyle = box.styles.italic ? 'italic' : '';
+      textDiv.style.fontSize = box.styles.fontSize + 'px';
+      // Remove formatting but allow newlines only
+      textDiv.addEventListener('keydown', e => {
+        if (e.key === "Enter") {
+          document.execCommand('insertLineBreak');
+          e.preventDefault();
         }
       });
+      el.appendChild(textDiv);
 
-      // Content editable input: update box.text on blur only
-      contentDiv.addEventListener('blur', () => {
-        box.text = contentDiv.textContent;
+      // Resize grip
+      const grip = document.createElement('div'); grip.className = 'resize-grip';
+      el.appendChild(grip);
+      // Drag
+      let dragging = false, startX, startY, boxStartL, boxStartT;
+      el.addEventListener('mousedown', e => {
+        if (e.target === grip || e.target.closest('.box-style-bar')) return;
+        dragging = true;
+        startX = e.clientX; startY = e.clientY;
+        boxStartL = box.left; boxStartT = box.top;
+        el.style.zIndex = 40;
+        e.preventDefault();
       });
+      window.addEventListener('mousemove', evt => {
+        if (!dragging) return;
+        const dx = evt.clientX - startX, dy = evt.clientY - startY;
+        box.left = Math.max(0, Math.min((canvas.width || 1200) - box.width, boxStartL + dx));
+        box.top = Math.max(0, Math.min((canvas.height || 800) - box.height, boxStartT + dy));
+        el.style.left = box.left + 'px'; el.style.top = box.top + 'px';
+        drawCanvas();
+      });
+      window.addEventListener('mouseup', () => { if(dragging){ dragging=false; el.style.zIndex=9;} });
 
-      // Select box on overlay click
-      el.addEventListener('click', (e) => {
+      // Resize
+      let resizing = false, sx, sy, bw, bh;
+      grip.addEventListener('mousedown', e => {
+        resizing = true; sx = e.clientX; sy = e.clientY; bw=box.width; bh=box.height;
+        el.style.zIndex = 99; e.stopPropagation();
+      });
+      window.addEventListener('mousemove', evt => {
+        if (!resizing) return;
+        box.width = Math.max(70, Math.min((canvas.width || 1200) - box.left, bw + (evt.clientX - sx)));
+        box.height = Math.max(34, Math.min((canvas.height || 800) - box.top, bh + (evt.clientY - sy)));
+        el.style.width = box.width + 'px'; el.style.height = box.height + 'px';
+        drawCanvas();
+      });
+      window.addEventListener('mouseup', () => { if(resizing){ resizing=false; el.style.zIndex=9;} });
+
+      // Select/toggle style bar
+      el.addEventListener('click', e => {
+        if (selectedBox !== box) {
+          selectedBox = box;
+          document.querySelectorAll('.box-overlay .box-style-bar').forEach(bar => bar.style.display='none');
+          styleBar.style.display = 'flex';
+          document.querySelectorAll('.box-overlay').forEach(boxDiv => boxDiv.classList.remove('selected'));
+          el.classList.add('selected');
+        }
         e.stopPropagation();
-        selectedBox = box;
-        updateSelectionVisual();
       });
 
       previewContainer.appendChild(el);
     });
   }
 
-  // Update selection styling visually
-  function updateSelectionVisual() {
-    document.querySelectorAll('.box-overlay').forEach(el => {
-      el.classList.toggle('selected', selectedBox && el.dataset.name === selectedBox.name);
-    });
-  }
-
-  // Drag functionality - disabled if locked
-  function addDragListeners(el, box) {
-    let dragging = false, startX, startY, startLeft, startTop;
-
-    el.addEventListener('pointerdown', e => {
-      if (box.locked) return;
-      // Ignore events from resize grip or lock button
-      if (e.target.classList.contains('resize-grip') || e.target.closest('.lock-btn')) return;
-      dragging = true;
-      startX = e.clientX;
-      startY = e.clientY;
-      startLeft = box.left;
-      startTop = box.top;
-      el.setPointerCapture(e.pointerId);
-      el.style.cursor = 'grabbing';
-      el.style.zIndex = 1000;
-      e.preventDefault();
-    });
-
-    el.addEventListener('pointermove', e => {
-      if (!dragging) return;
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-      box.left = Math.min(Math.max(0, startLeft + dx), canvas.width - box.width);
-      box.top = Math.min(Math.max(0, startTop + dy), canvas.height - box.height);
-      el.style.left = box.left + 'px';
-      el.style.top = box.top + 'px';
-      drawCanvas();
-    });
-
-    el.addEventListener('pointerup', e => {
-      if(!dragging) return;
-      dragging = false;
-      el.releasePointerCapture(e.pointerId);
-      el.style.cursor = 'grab';
-      el.style.zIndex = 8;
-      drawCanvas();
-    });
-
-    // Support Win keyboard drag via keyboard events (optional for accessibility)
-    el.addEventListener('keydown', e => {
-      if (box.locked) return;
-      const step = 5;
-      let moved = false;
-      if (e.key === "ArrowLeft") {
-        box.left = Math.max(0, box.left - step);
-        moved = true;
-      }
-      else if (e.key === "ArrowRight") {
-        box.left = Math.min(canvas.width - box.width, box.left + step);
-        moved = true;
-      }
-      else if (e.key === "ArrowUp") {
-        box.top = Math.max(0, box.top - step);
-        moved = true;
-      }
-      else if (e.key === "ArrowDown") {
-        box.top = Math.min(canvas.height - box.height, box.top + step);
-        moved = true;
-      }
-      if (moved) {
-        el.style.left = box.left + 'px';
-        el.style.top = box.top + 'px';
-        drawCanvas();
-        e.preventDefault();
-      }
-    });
-  }
-
-  // Resize functionality
-  function addResizeListeners(grip, box, el) {
-    let resizing = false;
-    let startX, startY, startWidth, startHeight;
-
-    grip.addEventListener('pointerdown', e => {
-      e.stopPropagation();
-      resizing = true;
-      grip.setPointerCapture(e.pointerId);
-      startX = e.clientX;
-      startY = e.clientY;
-      startWidth = box.width;
-      startHeight = box.height;
-      el.style.zIndex = 1000;
-      document.body.style.userSelect = 'none';
-      e.preventDefault();
-    });
-
-    grip.addEventListener('pointermove', e => {
-      if (!resizing) return;
-      let dw = e.clientX - startX;
-      let dh = e.clientY - startY;
-      box.width = Math.min(Math.max(60, startWidth + dw), canvas.width - box.left);
-      box.height = Math.min(Math.max(30, startHeight + dh), canvas.height - box.top);
-      el.style.width = box.width + 'px';
-      el.style.height = box.height + 'px';
-      drawCanvas();
-    });
-
-    grip.addEventListener('pointerup', e => {
-      if (!resizing) return;
-      resizing = false;
-      grip.releasePointerCapture(e.pointerId);
-      el.style.zIndex = 8;
-      document.body.style.userSelect = '';
-      drawCanvas();
-    });
-  }
-
-  // Apply contenteditable texts to boxes and redraw canvas
-  generateTextBtn.addEventListener('click', () => {
-    document.querySelectorAll('.box-overlay').forEach(el => {
-      const name = el.dataset.name;
-      const box = boxes.find(b => b.name === name);
-      if (box) {
-        const contentDiv = el.querySelector('.box-content');
-        if (contentDiv) {
-          box.text = contentDiv.textContent.trimEnd(); // allow trailing spaces
-        }
-      }
+  // Apply Everything to Canvas (text, styles)
+  applyBtn.onclick = () => {
+    document.querySelectorAll('.box-overlay').forEach((overlay, idx) => {
+      const txtDiv = overlay.querySelector('.box-editor-text');
+      boxes[idx].text = txtDiv ? txtDiv.innerText.trimEnd() : "";
+      boxes[idx].styles.bold = !!(txtDiv && txtDiv.style.fontWeight === "bold");
+      boxes[idx].styles.italic = !!(txtDiv && txtDiv.style.fontStyle === "italic");
+      boxes[idx].styles.fontSize = parseInt(txtDiv && txtDiv.style.fontSize) || 18;
     });
     drawCanvas();
-    showToast("Text updated");
-  });
+  };
 
-  // Save template
-  function saveTemplate() {
-    const tplName = templateNameInput.value.trim();
-    if (!tplName) {
-      showToast("Please enter a template name");
-      return;
-    }
-    if (!image.src) {
-      showToast("Please upload an image first");
-      return;
-    }
-    if (Object.keys(localStorage).some(k => k.toLowerCase() === ('template_' + tplName).toLowerCase())) {
-      showToast("Template name must be unique");
-      return;
-    }
-    // Apply current inline text to box text (to not lose edits)
-    generateTextBtn.click();
-
-    localStorage.setItem('template_' + tplName, JSON.stringify({
-      imageSrc: image.src,
-      boxes: boxes
-    }));
-    showToast(`Saved template "${tplName}"`);
-    loadTemplates();
-  }
-
-  // Load templates list or toggle visibility
-  function loadTemplates() {
-    if (templateList.style.display === 'block') {
-      templateList.style.display = 'none';
-      return;
-    }
-    templateList.style.display = 'block';
-    templateList.innerHTML = '';
-
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('template_'));
-    if (keys.length === 0) {
-      templateList.textContent = 'No saved templates.';
-      return;
-    }
-    keys.forEach(key => {
-      const tplName = key.slice(9);
-      const div = document.createElement('div');
-      div.className = 'template-item';
-
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = tplName;
-
-      const loadBtn = document.createElement('button');
-      loadBtn.className = 'loadBtn';
-      loadBtn.textContent = 'Load';
-      loadBtn.setAttribute('aria-label', `Load template ${tplName}`);
-      loadBtn.addEventListener('click', () => {
-        const tpl = JSON.parse(localStorage.getItem(key));
-        if (!tpl) {
-          showToast("Failed to load template");
-          return;
-        }
-        image.src = tpl.imageSrc;
-        image.onload = () => {
-          canvas.width = image.width;
-          canvas.height = image.height;
-          boxes = (tpl.boxes || []).map(b => Object.assign({}, b));
-          selectedBox = null;
-          createBoxOverlays();
-          drawCanvas();
-          templateNameInput.value = tplName;
-        };
-        templateList.style.display = 'none';
-        showToast(`Loaded template "${tplName}"`);
-      });
-
-      const delBtn = document.createElement('button');
-      delBtn.className = 'delBtn';
-      delBtn.textContent = 'Delete';
-      delBtn.setAttribute('aria-label', `Delete template ${tplName}`);
-      delBtn.addEventListener('click', () => {
-        if (confirm(`Delete template "${tplName}"?`)) {
-          localStorage.removeItem(key);
-          loadTemplates();
-          showToast(`Deleted template "${tplName}"`);
-          if(templateNameInput.value.trim() === tplName){
-            templateNameInput.value = '';
-            boxes = [];
-            selectedBox = null;
-            createBoxOverlays();
-            drawCanvas();
-          }
-        }
-      });
-
-      div.appendChild(nameSpan);
-      div.appendChild(loadBtn);
-      div.appendChild(delBtn);
-      templateList.appendChild(div);
+  // Add Box
+  addBoxBtn.onclick = () => {
+    if (!image.src) return alert("Upload image first.");
+    const name = boxNameInput.value.trim() || ("Box "+(boxes.length+1));
+    boxes.push({ name, left: 70, top: 70, width: 180, height: 52,
+      text: "",
+      styles: { bold: false, italic: false, fontSize: 18 }
     });
-  }
-
-  // Add new box
-  function addBox() {
-    const name = boxNameInput.value.trim();
-    if (!name) {
-      showToast('Please enter a box name');
-      return;
-    }
-    if (boxes.some(b => b.name.toLowerCase() === name.toLowerCase())) {
-      showToast('Box name already exists');
-      return;
-    }
-    if (!image.src) {
-      showToast('Upload an image first');
-      return;
-    }
-
-    boxes.push({
-      name,
-      left: 70,
-      top: 70,
-      width: 180,
-      height: 50,
-      text: '',
-      locked: false,
-      styles: { bold: false, italic: false, align: 'left', fontSize: 18 }
-    });
-
-    boxNameInput.value = '';
-    selectedBox = boxes[boxes.length - 1];
+    boxNameInput.value = "";
+    selectedBox = boxes[boxes.length-1];
     createBoxOverlays();
     drawCanvas();
-    showToast(`Added box "${name}"`);
-  }
+  };
 
-  // Download the final canvas image
-  function downloadCanvas() {
-    if (!image.src) {
-      showToast("No image to download");
-      return;
-    }
-    canvas.toBlob(blob => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'template-output.jpg';
-      a.click();
-      URL.revokeObjectURL(a.href);
-    }, 'image/jpeg', 0.97);
-  }
+  // Download
+  downloadBtn.onclick = () => {
+    applyBtn.click();
+    setTimeout(()=>{
+      canvas.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'template-image.jpg';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, "image/jpeg", 0.98);
+    }, 120); // let browser repaint overlays
+  };
 
-  // Load image from file input
-  imageUpload.addEventListener('change', () => {
-    const file = imageUpload.files[0];
-    if (!file) return;
-    const reader = new FileReader();
+  // Load Image
+  imageUpload.onchange = function() {
+    if (!this.files[0]) return;
+    let reader = new FileReader();
     reader.onload = e => {
       image.src = e.target.result;
       image.onload = () => {
@@ -808,39 +274,19 @@
         selectedBox = null;
         createBoxOverlays();
         drawCanvas();
-        templateList.style.display = 'none';
       };
     };
-    reader.readAsDataURL(file);
-  });
+    reader.readAsDataURL(this.files[0]);
+  };
 
-  // Deselect box on clicking outside overlays
   window.addEventListener('click', e => {
     if (!e.target.closest('.box-overlay')) {
       selectedBox = null;
-      updateSelectionVisual();
+      document.querySelectorAll('.box-overlay').forEach(r => r.classList.remove('selected'));
+      document.querySelectorAll('.box-style-bar').forEach(b => b.style.display = 'none');
     }
   });
 
-  // Event listeners for UI buttons
-  addBoxBtn.addEventListener('click', addBox);
-  saveTemplateBtn.addEventListener('click', saveTemplate);
-  loadTemplatesBtn.addEventListener('click', loadTemplates);
-  downloadBtn.addEventListener('click', downloadCanvas);
-
-  // Initial load
-  window.addEventListener('load', () => {
-    loadTemplates();
-  });
-
-  // Lock icon SVG (locked)
-  function lockedIconSVG() {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" ><path d="M12 2a5 5 0 0 0-5 5v3h-1a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5Zm-3 8V7a3 3 0 0 1 6 0v3Z"/></svg>`;
-  }
-  // Lock icon SVG (unlocked)
-  function unlockedIconSVG() {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" ><path d="M17 11V7a5 5 0 0 0-10 0v3H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Zm-5 4a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg>`;
-  }
 })();
 </script>
 </body>
