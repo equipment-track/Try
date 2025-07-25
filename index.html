@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Image Editor with Toggle Saved Templates & Full Features</title>
+<title>Image Editor - Download & Share</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -74,12 +74,14 @@
   }
   #controls {
     margin-top: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
   }
   #controls button,
   #controls input,
   #controls select {
-    margin-right: 8px;
-    margin-bottom: 6px;
     padding: 6px 12px;
     font-size: 14px;
     vertical-align: middle;
@@ -118,7 +120,6 @@
   #savedTemplatesList li button {
     margin-left: 8px;
   }
-
   /* Floating style toolbar */
   #styleControls {
     position: absolute;
@@ -168,7 +169,7 @@
 </head>
 <body>
 
-<h2>Image Editor with Toggle Saved Templates & Full Features</h2>
+<h2>Image Editor - Download & Share</h2>
 
 <input type="file" id="imageUploader" accept="image/*" />
 <br />
@@ -180,10 +181,8 @@
 
 <div id="controls" style="display:none;">
   <button id="addTextBoxBtn">Add Text Box</button>
-  <button id="undoBtn" disabled>Undo</button>
-  <button id="redoBtn" disabled>Redo</button>
-  <button id="downloadPngBtn">Download PNG</button>
-  <button id="downloadJpegBtn">Download JPG</button>
+  <button id="downloadBtn" disabled>Download</button>
+  <button id="shareBtn" disabled>Share</button>
   <input type="text" id="templateNameInput" placeholder="Enter template name" />
   <button id="saveTemplateBtn" disabled>Save Template</button>
 </div>
@@ -223,10 +222,8 @@
   const zoomableContent = document.getElementById('zoomable-content');
   const controls = document.getElementById('controls');
   const addTextBoxBtn = document.getElementById('addTextBoxBtn');
-  const undoBtn = document.getElementById('undoBtn');
-  const redoBtn = document.getElementById('redoBtn');
-  const downloadPngBtn = document.getElementById('downloadPngBtn');
-  const downloadJpegBtn = document.getElementById('downloadJpegBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const shareBtn = document.getElementById('shareBtn');
   const templateNameInput = document.getElementById('templateNameInput');
   const saveTemplateBtn = document.getElementById('saveTemplateBtn');
   const savedTemplatesList = document.getElementById('savedTemplatesList');
@@ -242,8 +239,6 @@
 
   let imageElement = null;
   let focusedTextarea = null;
-  let historyStack = [];
-  let redoStack = [];
 
   // --- Show/hide Saved Templates ---
   function afterTemplatesLoaded() {
@@ -344,9 +339,17 @@
   // --- Controls show/hide ---
 
   function showControls() {
-    controls.style.display = 'block';
+    controls.style.display = 'flex';
     updateSaveButtonState();
+    updateDownloadShareButtonState();
   }
+
+  function updateDownloadShareButtonState() {
+    const enable = !!imageElement;
+    downloadBtn.disabled = !enable;
+    shareBtn.disabled = !enable;
+  }
+
   // --- State capture and restore ---
   function captureCurrentState() {
     const textboxes = [];
@@ -413,42 +416,8 @@
 
         attachTextboxListeners(textarea);
       });
-
-      pushHistory(false);
     };
   }
-
-  // --- Undo/Redo ---
-  function pushHistory(clearRedo = true) {
-    const state = captureCurrentState();
-    historyStack.push(state);
-    if(clearRedo) redoStack = [];
-    updateUndoRedoButtons();
-  }
-
-  function updateUndoRedoButtons() {
-    undoBtn.disabled = historyStack.length <= 1;
-    redoBtn.disabled = redoStack.length === 0;
-  }
-
-  undoBtn.addEventListener('click', () => {
-    if(historyStack.length > 1) {
-      const current = historyStack.pop();
-      redoStack.push(current);
-      const prevState = historyStack[historyStack.length-1];
-      restoreState(prevState);
-      updateUndoRedoButtons();
-    }
-  });
-
-  redoBtn.addEventListener('click', () => {
-    if(redoStack.length > 0) {
-      const state = redoStack.pop();
-      historyStack.push(state);
-      restoreState(state);
-      updateUndoRedoButtons();
-    }
-  });
 
   // --- Floating style toolbar logic ---
   function updateStyleControlsPosition() {
@@ -501,7 +470,6 @@
     focusedTextarea.style.fontWeight = (focusedTextarea.style.fontWeight === 'bold') ? 'normal' : 'bold';
     updateStyleControlsPosition();
     focusedTextarea.focus();
-    pushHistory();
   });
 
   italicBtn.addEventListener('click', () => {
@@ -509,7 +477,6 @@
     focusedTextarea.style.fontStyle = (focusedTextarea.style.fontStyle === 'italic') ? 'normal' : 'italic';
     updateStyleControlsPosition();
     focusedTextarea.focus();
-    pushHistory();
   });
 
   fontSizeSelect.addEventListener('change', () => {
@@ -517,7 +484,6 @@
     focusedTextarea.style.fontSize = fontSizeSelect.value;
     updateStyleControlsPosition();
     focusedTextarea.focus();
-    pushHistory();
   });
 
   fontFamilySelect.addEventListener('change', () => {
@@ -525,7 +491,6 @@
     focusedTextarea.style.fontFamily = fontFamilySelect.value;
     updateStyleControlsPosition();
     focusedTextarea.focus();
-    pushHistory();
   });
 
   fontColorPicker.addEventListener('input', () => {
@@ -533,7 +498,6 @@
     focusedTextarea.style.color = fontColorPicker.value;
     updateStyleControlsPosition();
     focusedTextarea.focus();
-    pushHistory();
   });
 
   zoomableContent.addEventListener('focusin', e => {
@@ -558,7 +522,7 @@
     }, 0);
   });
 
-  // --- Drag implementation ---
+  // --- Dragging ---
   function makeDraggable(wrapper, handle) {
     let isDragging = false;
     let startX, startY;
@@ -615,7 +579,6 @@
       if (!isDragging) return;
       isDragging = false;
       handle.style.cursor = 'grab';
-      pushHistory();
     }
 
     if (window.PointerEvent) {
@@ -637,7 +600,7 @@
 
   // --- Add Text Box & Attach Listeners ---
   function attachTextboxListeners(textarea) {
-    textarea.addEventListener('input', () => pushHistory());
+    textarea.addEventListener('input', () => {});
     ['blur', 'focus', 'keyup', 'mouseup'].forEach(evt =>
       textarea.addEventListener(evt, () => {
         if (textarea === focusedTextarea) updateStyleControlsPosition();
@@ -667,7 +630,6 @@
 
     makeDraggable(wrapper, dragHandle);
     attachTextboxListeners(textarea);
-    pushHistory();
   });
 
   // --- Image Upload Handler ---
@@ -688,7 +650,6 @@
       imageElement.onload = () => {
         zoomableContent.appendChild(imageElement);
         showControls();
-        pushHistory();
       };
     };
     reader.readAsDataURL(file);
@@ -705,12 +666,28 @@
       ("0" + parseInt(result[3], 10).toString(16)).slice(-2);
   }
 
-  // --- Download ---
-  function downloadImage(type = 'png') {
+  // --- Download handler with format selection ---
+  downloadBtn.addEventListener('click', async () => {
     if (!imageElement) {
-      alert("Please upload an image first.");
+      alert('Please upload or load a template first.');
       return;
     }
+
+    const format = prompt('Enter export format: png, jpeg, or pdf', 'png');
+    if (!format) return;
+
+    const fmt = format.toLowerCase();
+
+    if (fmt === 'png' || fmt === 'jpeg' || fmt === 'jpg') {
+      await exportImage(fmt === 'jpg' ? 'jpeg' : fmt);
+    } else if (fmt === 'pdf') {
+      await exportPdf();
+    } else {
+      alert('Unsupported format. Please enter png, jpeg, or pdf.');
+    }
+  });
+
+  async function exportImage(type) {
     const canvas = document.createElement('canvas');
     canvas.width = imageElement.naturalWidth;
     canvas.height = imageElement.naturalHeight;
@@ -757,16 +734,178 @@
 
     const link = document.createElement('a');
     link.download = `edited-image.${type}`;
-    link.href = (type === 'png') ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.95);
+    link.href = type === 'png' ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.95);
+    document.body.appendChild(link);
     link.click();
+    link.remove();
   }
 
-  downloadPngBtn.addEventListener('click', () => downloadImage('png'));
-  downloadJpegBtn.addEventListener('click', () => downloadImage('jpeg'));
+  async function exportPdf() {
+    try {
+      // As no external libraries are allowed, we implement a simple PDF export:
+      // Export image + text as an image then open in new tab for user to save as PDF manually
+      alert('PDF export will open a new tab with the current image. Please use your browser print-to-PDF feature.');
+      const canvas = document.createElement('canvas');
+      canvas.width = imageElement.naturalWidth;
+      canvas.height = imageElement.naturalHeight;
+      const ctx = canvas.getContext('2d');
 
-  // --- Initialize ---
+      ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+
+      const imageRect = imageElement.getBoundingClientRect();
+      const zoomableRect = zoomableContent.getBoundingClientRect();
+
+      const scaleX = canvas.width / imageRect.width;
+      const scaleY = canvas.height / imageRect.height;
+
+      zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
+        const textarea = wrapper.querySelector('textarea');
+        const style = window.getComputedStyle(textarea);
+
+        const fontSize = parseInt(style.fontSize);
+        const fontFamily = style.fontFamily;
+        const fontWeight = style.fontWeight;
+        const fontStyle = style.fontStyle;
+        const color = style.color || 'black';
+
+        const wrapperLeft = parseFloat(wrapper.style.left || 0);
+        const wrapperTop = parseFloat(wrapper.style.top || 0);
+
+        const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
+        const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
+
+        const x = offsetX * scaleX;
+        const y = offsetY * scaleY;
+
+        ctx.fillStyle = color;
+        ctx.font = `${fontStyle} ${fontWeight} ${fontSize * scaleX}px ${fontFamily}`;
+        ctx.textBaseline = 'top';
+
+        const lines = textarea.value.split('\n');
+        const lineHeight = fontSize * 1.2 * scaleY;
+
+        lines.forEach((line, i) => {
+          ctx.fillText(line, x, y + i * lineHeight);
+        });
+      });
+
+      const dataUrl = canvas.toDataURL('image/png');
+      const newWindow = window.open();
+      if (newWindow) {
+        newWindow.document.write(`<img src="${dataUrl}" style="width:100%;">`);
+        newWindow.document.title = "Print to PDF";
+      } else {
+        alert("Popup blocked. Please allow popups to export PDF.");
+      }
+    } catch (err) {
+      alert('PDF export not supported in this browser.');
+    }
+  }
+
+  // --- Share button (share as JPEG) ---
+  shareBtn.addEventListener('click', () => {
+    shareImage('jpeg');
+  });
+
+  function shareImage(type = 'jpeg') {
+    if (!imageElement) {
+      alert("Please upload or load a template first.");
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = imageElement.naturalWidth;
+    canvas.height = imageElement.naturalHeight;
+    const ctx = canvas.getContext('2d');
+
+    ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+
+    const imageRect = imageElement.getBoundingClientRect();
+    const zoomableRect = zoomableContent.getBoundingClientRect();
+
+    const scaleX = canvas.width / imageRect.width;
+    const scaleY = canvas.height / imageRect.height;
+
+    zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
+      const textarea = wrapper.querySelector('textarea');
+      const style = window.getComputedStyle(textarea);
+
+      const fontSize = parseInt(style.fontSize);
+      const fontFamily = style.fontFamily;
+      const fontWeight = style.fontWeight;
+      const fontStyle = style.fontStyle;
+      const color = style.color || 'black';
+
+      const wrapperLeft = parseFloat(wrapper.style.left || 0);
+      const wrapperTop = parseFloat(wrapper.style.top || 0);
+
+      const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
+      const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
+
+      const x = offsetX * scaleX;
+      const y = offsetY * scaleY;
+
+      ctx.fillStyle = color;
+      ctx.font = `${fontStyle} ${fontWeight} ${fontSize * scaleX}px ${fontFamily}`;
+      ctx.textBaseline = 'top';
+
+      const lines = textarea.value.split('\n');
+      const lineHeight = fontSize * 1.2 * scaleY;
+
+      lines.forEach((line, i) => {
+        ctx.fillText(line, x, y + i * lineHeight);
+      });
+    });
+
+    canvas.toBlob(blob => {
+      if (navigator.canShare && navigator.canShare({ files: [new File([blob], `template.${type}`, { type: blob.type })] })) {
+        const file = new File([blob], `template.${type}`, { type: blob.type });
+        navigator.share({
+          files: [file],
+          title: 'Shared Image Template',
+          text: 'Check out this image template.'
+        }).catch(err => {
+          console.error('Sharing failed:', err);
+          alert('Sharing failed or was cancelled.');
+        });
+      } else {
+        // Fallback: download the image
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `template.${type}`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        alert('Sharing not supported on this device. The image has been downloaded instead.');
+      }
+    }, 'image/jpeg', 0.95);
+  }
+
+  // --- Helpers & Initialization ---
+
+  function rgbToHex(rgb) {
+    if (!rgb) return null;
+    const result = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if (!result) return null;
+    return "#" +
+      ("0" + parseInt(result[1], 10).toString(16)).slice(-2) +
+      ("0" + parseInt(result[2], 10).toString(16)).slice(-2) +
+      ("0" + parseInt(result[3], 10).toString(16)).slice(-2);
+  }
+
+  function attachTextboxListeners(textarea) {
+    textarea.addEventListener('input', () => {});
+    ['blur', 'focus', 'keyup', 'mouseup'].forEach(evt =>
+      textarea.addEventListener(evt, () => {
+        if (textarea === focusedTextarea) updateStyleControlsPosition();
+      })
+    );
+  }
+
+  // --- Initialize saved templates list ---
   renderSavedTemplatesList();
   updateSaveButtonState();
+  updateDownloadShareButtonState();
 
 </script>
 
