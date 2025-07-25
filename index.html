@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Image Editor with Undo/Redo, Save Templates & More</title>
+<title>Image Editor with Toggle Saved Templates & Full Features</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -69,6 +69,9 @@
   .drag-handle:active {
     cursor: grabbing;
   }
+  #toggleSavedTemplatesBtn {
+    margin-bottom: 10px;
+  }
   #controls {
     margin-top: 15px;
   }
@@ -84,13 +87,18 @@
   #templateNameInput {
     width: 200px;
   }
-  #savedTemplatesList {
-    list-style: none;
-    padding-left: 0;
+  #savedTemplatesContainer {
     max-height: 150px;
     overflow-y: auto;
     border: 1px solid #ccc;
+    padding: 4px;
     margin-top: 6px;
+    display: none;
+  }
+  #savedTemplatesList {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
   }
   #savedTemplatesList li {
     margin-bottom: 4px;
@@ -160,11 +168,14 @@
 </head>
 <body>
 
-<h2>Image Editor with Undo/Redo, Save Templates & More</h2>
+<h2>Image Editor with Toggle Saved Templates & Full Features</h2>
 
 <input type="file" id="imageUploader" accept="image/*" />
-<div id="container">
-  <div id="zoomable-content"></div>
+<br />
+<button id="toggleSavedTemplatesBtn" style="display:none;">Show Saved Templates</button>
+
+<div id="savedTemplatesContainer">
+  <ul id="savedTemplatesList"></ul>
 </div>
 
 <div id="controls" style="display:none;">
@@ -175,11 +186,6 @@
   <button id="downloadJpegBtn">Download JPG</button>
   <input type="text" id="templateNameInput" placeholder="Enter template name" />
   <button id="saveTemplateBtn" disabled>Save Template</button>
-
-  <div style="margin-top:10px;">
-    <strong>Saved Templates:</strong>
-    <ul id="savedTemplatesList"></ul>
-  </div>
 </div>
 
 <!-- Floating style toolbar -->
@@ -206,7 +212,12 @@
   <input type="color" id="fontColorPicker" title="Pick Text Color" aria-label="Text color" value="#000000" />
 </div>
 
+<div id="container">
+  <div id="zoomable-content"></div>
+</div>
+
 <script>
+  // Element references
   const imageUploader = document.getElementById('imageUploader');
   const container = document.getElementById('container');
   const zoomableContent = document.getElementById('zoomable-content');
@@ -219,6 +230,8 @@
   const templateNameInput = document.getElementById('templateNameInput');
   const saveTemplateBtn = document.getElementById('saveTemplateBtn');
   const savedTemplatesList = document.getElementById('savedTemplatesList');
+  const savedTemplatesContainer = document.getElementById('savedTemplatesContainer');
+  const toggleSavedTemplatesBtn = document.getElementById('toggleSavedTemplatesBtn');
 
   const styleControls = document.getElementById('styleControls');
   const boldBtn = document.getElementById('boldBtn');
@@ -229,121 +242,26 @@
 
   let imageElement = null;
   let focusedTextarea = null;
-
-  // History stacks for undo/redo
   let historyStack = [];
   let redoStack = [];
 
-  // --- State capture and restore ---
-
-  // Capture current editor state
-  function captureCurrentState() {
-    const textboxes = [];
-    zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
-      const textarea = wrapper.querySelector('textarea');
-      textboxes.push({
-        top: wrapper.style.top,
-        left: wrapper.style.left,
-        width: textarea.style.width || textarea.offsetWidth + 'px',
-        height: textarea.style.height || textarea.offsetHeight + 'px',
-        value: textarea.value,
-        fontWeight: textarea.style.fontWeight || 'normal',
-        fontStyle: textarea.style.fontStyle || 'normal',
-        fontSize: textarea.style.fontSize || '16px',
-        fontFamily: textarea.style.fontFamily || 'Arial, sans-serif',
-        color: textarea.style.color || 'black'
-      });
-    });
-    return {
-      imageSrc: imageElement ? imageElement.src : null,
-      textboxes
-    };
+  // --- Show/hide Saved Templates ---
+  function afterTemplatesLoaded() {
+    toggleSavedTemplatesBtn.style.display = 'inline-block';
+    savedTemplatesContainer.style.display = 'none';
+    toggleSavedTemplatesBtn.textContent = 'Show Saved Templates';
   }
-
-  // Restore editor from state object
-  function restoreState(state) {
-    if (!state || !state.imageSrc) return;
-    zoomableContent.innerHTML = '';
-    imageElement = new Image();
-    imageElement.src = state.imageSrc;
-    imageElement.draggable = false;
-    imageElement.style.userSelect = 'none';
-    imageElement.style.position = 'relative';
-    imageElement.style.maxWidth = '100%';
-    imageElement.style.height = 'auto';
-
-    imageElement.onload = () => {
-      zoomableContent.appendChild(imageElement);
-      controls.style.display = 'block';
-
-      // Add textboxes
-      state.textboxes.forEach(tb => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'textbox-wrapper';
-        wrapper.style.top = tb.top;
-        wrapper.style.left = tb.left;
-
-        const textarea = document.createElement('textarea');
-        textarea.value = tb.value;
-        textarea.style.width = tb.width;
-        textarea.style.height = tb.height;
-        textarea.style.fontWeight = tb.fontWeight;
-        textarea.style.fontStyle = tb.fontStyle;
-        textarea.style.fontSize = tb.fontSize;
-        textarea.style.fontFamily = tb.fontFamily;
-        textarea.style.color = tb.color;
-
-        wrapper.appendChild(textarea);
-
-        const dragHandle = document.createElement('div');
-        dragHandle.className = 'drag-handle';
-        wrapper.appendChild(dragHandle);
-
-        zoomableContent.appendChild(wrapper);
-        makeDraggable(wrapper, dragHandle);
-
-        attachTextboxListeners(textarea);
-      });
-
-      // Push state after restoring
-      pushHistory(false);
-    };
-  }
-
-  // --- Undo/Redo ---
-
-  function pushHistory(clearRedo = true) {
-    const state = captureCurrentState();
-    historyStack.push(state);
-    if(clearRedo) redoStack = [];
-    updateUndoRedoButtons();
-  }
-
-  function updateUndoRedoButtons() {
-    undoBtn.disabled = historyStack.length <= 1;
-    redoBtn.disabled = redoStack.length === 0;
-  }
-
-  undoBtn.addEventListener('click', () => {
-    if(historyStack.length > 1) {
-      const current = historyStack.pop();
-      redoStack.push(current);
-      const prevState = historyStack[historyStack.length-1];
-      restoreState(prevState);
-      updateUndoRedoButtons();
+  toggleSavedTemplatesBtn.addEventListener('click', () => {
+    if (savedTemplatesContainer.style.display === 'none' || savedTemplatesContainer.style.display === '') {
+      savedTemplatesContainer.style.display = 'block';
+      toggleSavedTemplatesBtn.textContent = 'Hide Saved Templates';
+    } else {
+      savedTemplatesContainer.style.display = 'none';
+      toggleSavedTemplatesBtn.textContent = 'Show Saved Templates';
     }
   });
 
-  redoBtn.addEventListener('click', () => {
-    if(redoStack.length > 0) {
-      const state = redoStack.pop();
-      historyStack.push(state);
-      restoreState(state);
-      updateUndoRedoButtons();
-    }
-  });
-
-  // --- Save/Load Templates to localStorage ---
+  // --- Template Management ---
 
   function getSavedTemplates() {
     const data = localStorage.getItem('imageEditorTemplates');
@@ -357,7 +275,14 @@
   function renderSavedTemplatesList() {
     savedTemplatesList.innerHTML = '';
     const templates = getSavedTemplates();
-    Object.keys(templates).forEach(name => {
+    const names = Object.keys(templates);
+    if (names.length === 0) {
+      savedTemplatesContainer.style.display = 'none';
+      toggleSavedTemplatesBtn.style.display = 'none';
+      return;
+    }
+    afterTemplatesLoaded();
+    names.forEach(name => {
       const li = document.createElement('li');
 
       const span = document.createElement('span');
@@ -416,8 +341,116 @@
     saveTemplateBtn.disabled = !imageElement || !templateNameInput.value.trim();
   }
 
-  // --- Floating toolbar ---
+  // --- Controls show/hide ---
 
+  function showControls() {
+    controls.style.display = 'block';
+    updateSaveButtonState();
+  }
+  // --- State capture and restore ---
+  function captureCurrentState() {
+    const textboxes = [];
+    zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
+      const textarea = wrapper.querySelector('textarea');
+      textboxes.push({
+        top: wrapper.style.top,
+        left: wrapper.style.left,
+        width: textarea.style.width || textarea.offsetWidth + 'px',
+        height: textarea.style.height || textarea.offsetHeight + 'px',
+        value: textarea.value,
+        fontWeight: textarea.style.fontWeight || 'normal',
+        fontStyle: textarea.style.fontStyle || 'normal',
+        fontSize: textarea.style.fontSize || '16px',
+        fontFamily: textarea.style.fontFamily || 'Arial, sans-serif',
+        color: textarea.style.color || 'black'
+      });
+    });
+    return {
+      imageSrc: imageElement ? imageElement.src : null,
+      textboxes
+    };
+  }
+
+  function restoreState(state) {
+    if (!state || !state.imageSrc) return;
+    zoomableContent.innerHTML = '';
+    imageElement = new Image();
+    imageElement.src = state.imageSrc;
+    imageElement.draggable = false;
+    imageElement.style.userSelect = 'none';
+    imageElement.style.position = 'relative';
+    imageElement.style.maxWidth = '100%';
+    imageElement.style.height = 'auto';
+
+    imageElement.onload = () => {
+      zoomableContent.appendChild(imageElement);
+      showControls();
+
+      state.textboxes.forEach(tb => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'textbox-wrapper';
+        wrapper.style.top = tb.top;
+        wrapper.style.left = tb.left;
+
+        const textarea = document.createElement('textarea');
+        textarea.value = tb.value;
+        textarea.style.width = tb.width;
+        textarea.style.height = tb.height;
+        textarea.style.fontWeight = tb.fontWeight;
+        textarea.style.fontStyle = tb.fontStyle;
+        textarea.style.fontSize = tb.fontSize;
+        textarea.style.fontFamily = tb.fontFamily;
+        textarea.style.color = tb.color;
+
+        wrapper.appendChild(textarea);
+
+        const dragHandle = document.createElement('div');
+        dragHandle.className = 'drag-handle';
+        wrapper.appendChild(dragHandle);
+
+        zoomableContent.appendChild(wrapper);
+        makeDraggable(wrapper, dragHandle);
+
+        attachTextboxListeners(textarea);
+      });
+
+      pushHistory(false);
+    };
+  }
+
+  // --- Undo/Redo ---
+  function pushHistory(clearRedo = true) {
+    const state = captureCurrentState();
+    historyStack.push(state);
+    if(clearRedo) redoStack = [];
+    updateUndoRedoButtons();
+  }
+
+  function updateUndoRedoButtons() {
+    undoBtn.disabled = historyStack.length <= 1;
+    redoBtn.disabled = redoStack.length === 0;
+  }
+
+  undoBtn.addEventListener('click', () => {
+    if(historyStack.length > 1) {
+      const current = historyStack.pop();
+      redoStack.push(current);
+      const prevState = historyStack[historyStack.length-1];
+      restoreState(prevState);
+      updateUndoRedoButtons();
+    }
+  });
+
+  redoBtn.addEventListener('click', () => {
+    if(redoStack.length > 0) {
+      const state = redoStack.pop();
+      historyStack.push(state);
+      restoreState(state);
+      updateUndoRedoButtons();
+    }
+  });
+
+  // --- Floating style toolbar logic ---
   function updateStyleControlsPosition() {
     if (!focusedTextarea) {
       styleControls.classList.remove('visible');
@@ -525,8 +558,7 @@
     }, 0);
   });
 
-  // --- Dragging ---
-
+  // --- Drag implementation ---
   function makeDraggable(wrapper, handle) {
     let isDragging = false;
     let startX, startY;
@@ -603,8 +635,7 @@
     }
   }
 
-  // --- Adding Text Box & Listeners ---
-
+  // --- Add Text Box & Attach Listeners ---
   function attachTextboxListeners(textarea) {
     textarea.addEventListener('input', () => pushHistory());
     ['blur', 'focus', 'keyup', 'mouseup'].forEach(evt =>
@@ -640,7 +671,6 @@
   });
 
   // --- Image Upload Handler ---
-
   imageUploader.addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -657,17 +687,14 @@
 
       imageElement.onload = () => {
         zoomableContent.appendChild(imageElement);
-        controls.style.display = 'block';
-        container.scrollTop = 0;
-        container.scrollLeft = 0;
+        showControls();
         pushHistory();
       };
     };
     reader.readAsDataURL(file);
   });
 
-  // --- Color Helper ---
-
+  // --- Color helper ---
   function rgbToHex(rgb) {
     if (!rgb) return null;
     const result = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
@@ -678,8 +705,7 @@
       ("0" + parseInt(result[3], 10).toString(16)).slice(-2);
   }
 
-  // --- Download Image ---
-
+  // --- Download ---
   function downloadImage(type = 'png') {
     if (!imageElement) {
       alert("Please upload an image first.");
@@ -738,7 +764,7 @@
   downloadPngBtn.addEventListener('click', () => downloadImage('png'));
   downloadJpegBtn.addEventListener('click', () => downloadImage('jpeg'));
 
-  // --- Initialize saved templates list ---
+  // --- Initialize ---
   renderSavedTemplatesList();
   updateSaveButtonState();
 
