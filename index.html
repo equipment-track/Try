@@ -75,7 +75,6 @@
     padding: 6px 12px;
     font-size: 14px;
   }
-
   /* Floating style toolbar */
   #styleControls {
     position: absolute;
@@ -236,14 +235,17 @@
   });
 
   zoomableContent.addEventListener('focusout', e => {
-    // Delay hiding controls to support switching between textboxes
+    // Delay hiding controls to allow interaction with styleControls
     setTimeout(() => {
-      if (document.activeElement !== focusedTextarea) {
-        focusedTextarea = null;
-        hideStyleControls();
-        container.removeEventListener('scroll', updateStyleControlsPosition);
-        window.removeEventListener('resize', updateStyleControlsPosition);
+      const active = document.activeElement;
+      if (focusedTextarea && (active === focusedTextarea || styleControls.contains(active))) {
+        // Focus still on textarea or toolbar, keep visible
+        return;
       }
+      focusedTextarea = null;
+      hideStyleControls();
+      container.removeEventListener('scroll', updateStyleControlsPosition);
+      window.removeEventListener('resize', updateStyleControlsPosition);
     }, 0);
   });
 
