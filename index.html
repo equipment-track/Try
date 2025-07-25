@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Image Editor with Color and Font Family Selection</title>
+<title>Image Editor with Undo/Redo, Save Templates & More</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -72,10 +72,43 @@
   #controls {
     margin-top: 15px;
   }
-  button {
-    margin-right: 10px;
+  #controls button,
+  #controls input,
+  #controls select {
+    margin-right: 8px;
+    margin-bottom: 6px;
     padding: 6px 12px;
     font-size: 14px;
+    vertical-align: middle;
+  }
+  #templateNameInput {
+    width: 200px;
+  }
+  #savedTemplatesList {
+    list-style: none;
+    padding-left: 0;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    margin-top: 6px;
+  }
+  #savedTemplatesList li {
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 3px;
+  }
+  #savedTemplatesList li:hover {
+    background: #e7f1ff;
+  }
+  #savedTemplatesList li span {
+    cursor: pointer;
+    flex-grow: 1;
+  }
+  #savedTemplatesList li button {
+    margin-left: 8px;
   }
 
   /* Floating style toolbar */
@@ -99,7 +132,9 @@
     visibility: visible;
     opacity: 1;
   }
-  #styleControls button, #styleControls select, #styleControls input[type="color"] {
+  #styleControls button,
+  #styleControls select,
+  #styleControls input[type="color"] {
     cursor: pointer;
     font-size: 14px;
     background: white;
@@ -125,7 +160,7 @@
 </head>
 <body>
 
-<h2>Image Editor with Color and Font Family Selection</h2>
+<h2>Image Editor with Undo/Redo, Save Templates & More</h2>
 
 <input type="file" id="imageUploader" accept="image/*" />
 <div id="container">
@@ -134,8 +169,17 @@
 
 <div id="controls" style="display:none;">
   <button id="addTextBoxBtn">Add Text Box</button>
-  <button id="downloadBtn">Download Image</button>
-  <span style="margin-left:20px;">Use your device’s native zoom controls (pinch zoom, browser zoom). Drag blue dot to move boxes.</span>
+  <button id="undoBtn" disabled>Undo</button>
+  <button id="redoBtn" disabled>Redo</button>
+  <button id="downloadPngBtn">Download PNG</button>
+  <button id="downloadJpegBtn">Download JPG</button>
+  <input type="text" id="templateNameInput" placeholder="Enter template name" />
+  <button id="saveTemplateBtn" disabled>Save Template</button>
+
+  <div style="margin-top:10px;">
+    <strong>Saved Templates:</strong>
+    <ul id="savedTemplatesList"></ul>
+  </div>
 </div>
 
 <!-- Floating style toolbar -->
@@ -168,7 +212,13 @@
   const zoomableContent = document.getElementById('zoomable-content');
   const controls = document.getElementById('controls');
   const addTextBoxBtn = document.getElementById('addTextBoxBtn');
-  const downloadBtn = document.getElementById('downloadBtn');
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  const downloadPngBtn = document.getElementById('downloadPngBtn');
+  const downloadJpegBtn = document.getElementById('downloadJpegBtn');
+  const templateNameInput = document.getElementById('templateNameInput');
+  const saveTemplateBtn = document.getElementById('saveTemplateBtn');
+  const savedTemplatesList = document.getElementById('savedTemplatesList');
 
   const styleControls = document.getElementById('styleControls');
   const boldBtn = document.getElementById('boldBtn');
@@ -179,6 +229,194 @@
 
   let imageElement = null;
   let focusedTextarea = null;
+
+  // History stacks for undo/redo
+  let historyStack = [];
+  let redoStack = [];
+
+  // --- State capture and restore ---
+
+  // Capture current editor state
+  function captureCurrentState() {
+    const textboxes = [];
+    zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
+      const textarea = wrapper.querySelector('textarea');
+      textboxes.push({
+        top: wrapper.style.top,
+        left: wrapper.style.left,
+        width: textarea.style.width || textarea.offsetWidth + 'px',
+        height: textarea.style.height || textarea.offsetHeight + 'px',
+        value: textarea.value,
+        fontWeight: textarea.style.fontWeight || 'normal',
+        fontStyle: textarea.style.fontStyle || 'normal',
+        fontSize: textarea.style.fontSize || '16px',
+        fontFamily: textarea.style.fontFamily || 'Arial, sans-serif',
+        color: textarea.style.color || 'black'
+      });
+    });
+    return {
+      imageSrc: imageElement ? imageElement.src : null,
+      textboxes
+    };
+  }
+
+  // Restore editor from state object
+  function restoreState(state) {
+    if (!state || !state.imageSrc) return;
+    zoomableContent.innerHTML = '';
+    imageElement = new Image();
+    imageElement.src = state.imageSrc;
+    imageElement.draggable = false;
+    imageElement.style.userSelect = 'none';
+    imageElement.style.position = 'relative';
+    imageElement.style.maxWidth = '100%';
+    imageElement.style.height = 'auto';
+
+    imageElement.onload = () => {
+      zoomableContent.appendChild(imageElement);
+      controls.style.display = 'block';
+
+      // Add textboxes
+      state.textboxes.forEach(tb => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'textbox-wrapper';
+        wrapper.style.top = tb.top;
+        wrapper.style.left = tb.left;
+
+        const textarea = document.createElement('textarea');
+        textarea.value = tb.value;
+        textarea.style.width = tb.width;
+        textarea.style.height = tb.height;
+        textarea.style.fontWeight = tb.fontWeight;
+        textarea.style.fontStyle = tb.fontStyle;
+        textarea.style.fontSize = tb.fontSize;
+        textarea.style.fontFamily = tb.fontFamily;
+        textarea.style.color = tb.color;
+
+        wrapper.appendChild(textarea);
+
+        const dragHandle = document.createElement('div');
+        dragHandle.className = 'drag-handle';
+        wrapper.appendChild(dragHandle);
+
+        zoomableContent.appendChild(wrapper);
+        makeDraggable(wrapper, dragHandle);
+
+        attachTextboxListeners(textarea);
+      });
+
+      // Push state after restoring
+      pushHistory(false);
+    };
+  }
+
+  // --- Undo/Redo ---
+
+  function pushHistory(clearRedo = true) {
+    const state = captureCurrentState();
+    historyStack.push(state);
+    if(clearRedo) redoStack = [];
+    updateUndoRedoButtons();
+  }
+
+  function updateUndoRedoButtons() {
+    undoBtn.disabled = historyStack.length <= 1;
+    redoBtn.disabled = redoStack.length === 0;
+  }
+
+  undoBtn.addEventListener('click', () => {
+    if(historyStack.length > 1) {
+      const current = historyStack.pop();
+      redoStack.push(current);
+      const prevState = historyStack[historyStack.length-1];
+      restoreState(prevState);
+      updateUndoRedoButtons();
+    }
+  });
+
+  redoBtn.addEventListener('click', () => {
+    if(redoStack.length > 0) {
+      const state = redoStack.pop();
+      historyStack.push(state);
+      restoreState(state);
+      updateUndoRedoButtons();
+    }
+  });
+
+  // --- Save/Load Templates to localStorage ---
+
+  function getSavedTemplates() {
+    const data = localStorage.getItem('imageEditorTemplates');
+    return data ? JSON.parse(data) : {};
+  }
+
+  function saveTemplatesToStorage(templates) {
+    localStorage.setItem('imageEditorTemplates', JSON.stringify(templates));
+  }
+
+  function renderSavedTemplatesList() {
+    savedTemplatesList.innerHTML = '';
+    const templates = getSavedTemplates();
+    Object.keys(templates).forEach(name => {
+      const li = document.createElement('li');
+
+      const span = document.createElement('span');
+      span.textContent = name;
+      span.title = "Click to load template";
+      span.style.flexGrow = '1';
+      span.style.cursor = 'pointer';
+      span.addEventListener('click', () => {
+        restoreState(templates[name]);
+      });
+      li.appendChild(span);
+
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Delete';
+      delBtn.addEventListener('click', () => {
+        if(confirm(`Delete template "${name}"?`)) {
+          const ts = getSavedTemplates();
+          delete ts[name];
+          saveTemplatesToStorage(ts);
+          renderSavedTemplatesList();
+        }
+      });
+      li.appendChild(delBtn);
+
+      savedTemplatesList.appendChild(li);
+    });
+  }
+
+  saveTemplateBtn.addEventListener('click', () => {
+    const name = templateNameInput.value.trim();
+    if(!name) {
+      alert('Please enter a template name.');
+      return;
+    }
+    const templates = getSavedTemplates();
+    if(templates.hasOwnProperty(name)) {
+      alert('Template name already exists. Please choose a different name.');
+      return;
+    }
+    const currentState = captureCurrentState();
+    if(!currentState.imageSrc) {
+      alert('No image to save.');
+      return;
+    }
+    templates[name] = currentState;
+    saveTemplatesToStorage(templates);
+    renderSavedTemplatesList();
+    alert(`Template "${name}" saved.`);
+    templateNameInput.value = '';
+    updateSaveButtonState();
+  });
+
+  templateNameInput.addEventListener('input', updateSaveButtonState);
+
+  function updateSaveButtonState() {
+    saveTemplateBtn.disabled = !imageElement || !templateNameInput.value.trim();
+  }
+
+  // --- Floating toolbar ---
 
   function updateStyleControlsPosition() {
     if (!focusedTextarea) {
@@ -217,7 +455,6 @@
 
     fontSizeSelect.value = focusedTextarea.style.fontSize || '16px';
     fontFamilySelect.value = focusedTextarea.style.fontFamily || 'Arial, sans-serif';
-    // Normalize color - if empty default to black
     fontColorPicker.value = rgbToHex(focusedTextarea.style.color) || '#000000';
   }
 
@@ -231,6 +468,7 @@
     focusedTextarea.style.fontWeight = (focusedTextarea.style.fontWeight === 'bold') ? 'normal' : 'bold';
     updateStyleControlsPosition();
     focusedTextarea.focus();
+    pushHistory();
   });
 
   italicBtn.addEventListener('click', () => {
@@ -238,6 +476,7 @@
     focusedTextarea.style.fontStyle = (focusedTextarea.style.fontStyle === 'italic') ? 'normal' : 'italic';
     updateStyleControlsPosition();
     focusedTextarea.focus();
+    pushHistory();
   });
 
   fontSizeSelect.addEventListener('change', () => {
@@ -245,6 +484,7 @@
     focusedTextarea.style.fontSize = fontSizeSelect.value;
     updateStyleControlsPosition();
     focusedTextarea.focus();
+    pushHistory();
   });
 
   fontFamilySelect.addEventListener('change', () => {
@@ -252,6 +492,7 @@
     focusedTextarea.style.fontFamily = fontFamilySelect.value;
     updateStyleControlsPosition();
     focusedTextarea.focus();
+    pushHistory();
   });
 
   fontColorPicker.addEventListener('input', () => {
@@ -259,6 +500,7 @@
     focusedTextarea.style.color = fontColorPicker.value;
     updateStyleControlsPosition();
     focusedTextarea.focus();
+    pushHistory();
   });
 
   zoomableContent.addEventListener('focusin', e => {
@@ -274,7 +516,7 @@
     setTimeout(() => {
       const active = document.activeElement;
       if (focusedTextarea && (active === focusedTextarea || styleControls.contains(active))) {
-        return; // still focused or interacting with toolbar
+        return;
       }
       focusedTextarea = null;
       hideStyleControls();
@@ -283,56 +525,8 @@
     }, 0);
   });
 
-  // Image Upload
-  imageUploader.addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = event => {
-      zoomableContent.innerHTML = '';
-      imageElement = new Image();
-      imageElement.src = event.target.result;
-      imageElement.draggable = false;
-      imageElement.style.userSelect = 'none';
-      imageElement.style.position = 'relative';
-      imageElement.style.maxWidth = '100%';
-      imageElement.style.height = 'auto';
+  // --- Dragging ---
 
-      imageElement.onload = () => {
-        zoomableContent.appendChild(imageElement);
-        controls.style.display = 'block';
-        container.scrollTop = 0;
-        container.scrollLeft = 0;
-      };
-    };
-    reader.readAsDataURL(file);
-  });
-
-  // Add Text Box
-  addTextBoxBtn.addEventListener('click', () => {
-    if (!imageElement) return;
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'textbox-wrapper';
-    wrapper.style.top = '10px';
-    wrapper.style.left = '10px';
-
-    const textarea = document.createElement('textarea');
-    textarea.rows = 3;
-    textarea.value = 'Edit text';
-    wrapper.appendChild(textarea);
-
-    const dragHandle = document.createElement('div');
-    dragHandle.className = 'drag-handle';
-    wrapper.appendChild(dragHandle);
-
-    zoomableContent.appendChild(wrapper);
-    textarea.focus();
-
-    makeDraggable(wrapper, dragHandle);
-  });
-
-  // Drag handle code remains the same
   function makeDraggable(wrapper, handle) {
     let isDragging = false;
     let startX, startY;
@@ -389,6 +583,7 @@
       if (!isDragging) return;
       isDragging = false;
       handle.style.cursor = 'grab';
+      pushHistory();
     }
 
     if (window.PointerEvent) {
@@ -408,19 +603,84 @@
     }
   }
 
-  // Helper: convert rgb/rgba string to hex for color input sync
+  // --- Adding Text Box & Listeners ---
+
+  function attachTextboxListeners(textarea) {
+    textarea.addEventListener('input', () => pushHistory());
+    ['blur', 'focus', 'keyup', 'mouseup'].forEach(evt =>
+      textarea.addEventListener(evt, () => {
+        if (textarea === focusedTextarea) updateStyleControlsPosition();
+      })
+    );
+  }
+
+  addTextBoxBtn.addEventListener('click', () => {
+    if (!imageElement) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'textbox-wrapper';
+    wrapper.style.top = '10px';
+    wrapper.style.left = '10px';
+
+    const textarea = document.createElement('textarea');
+    textarea.rows = 3;
+    textarea.value = 'Edit text';
+    wrapper.appendChild(textarea);
+
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'drag-handle';
+    wrapper.appendChild(dragHandle);
+
+    zoomableContent.appendChild(wrapper);
+    textarea.focus();
+
+    makeDraggable(wrapper, dragHandle);
+    attachTextboxListeners(textarea);
+    pushHistory();
+  });
+
+  // --- Image Upload Handler ---
+
+  imageUploader.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = event => {
+      zoomableContent.innerHTML = '';
+      imageElement = new Image();
+      imageElement.src = event.target.result;
+      imageElement.draggable = false;
+      imageElement.style.userSelect = 'none';
+      imageElement.style.position = 'relative';
+      imageElement.style.maxWidth = '100%';
+      imageElement.style.height = 'auto';
+
+      imageElement.onload = () => {
+        zoomableContent.appendChild(imageElement);
+        controls.style.display = 'block';
+        container.scrollTop = 0;
+        container.scrollLeft = 0;
+        pushHistory();
+      };
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // --- Color Helper ---
+
   function rgbToHex(rgb) {
     if (!rgb) return null;
     const result = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
     if (!result) return null;
-    return "#" + 
-      ("0" + parseInt(result[1],10).toString(16)).slice(-2) +
-      ("0" + parseInt(result[2],10).toString(16)).slice(-2) +
-      ("0" + parseInt(result[3],10).toString(16)).slice(-2);
+    return "#" +
+      ("0" + parseInt(result[1], 10).toString(16)).slice(-2) +
+      ("0" + parseInt(result[2], 10).toString(16)).slice(-2) +
+      ("0" + parseInt(result[3], 10).toString(16)).slice(-2);
   }
 
-  // Download function remains unchanged...
-  downloadBtn.addEventListener('click', () => {
+  // --- Download Image ---
+
+  function downloadImage(type = 'png') {
     if (!imageElement) {
       alert("Please upload an image first.");
       return;
@@ -438,8 +698,7 @@
     const scaleX = canvas.width / imageRect.width;
     const scaleY = canvas.height / imageRect.height;
 
-    const wrappers = zoomableContent.querySelectorAll('.textbox-wrapper');
-    wrappers.forEach(wrapper => {
+    zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
       const textarea = wrapper.querySelector('textarea');
       const style = window.getComputedStyle(textarea);
 
@@ -471,13 +730,21 @@
     });
 
     const link = document.createElement('a');
-    link.download = 'edited-image.png';
-    link.href = canvas.toDataURL('image/png');
+    link.download = `edited-image.${type}`;
+    link.href = (type === 'png') ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.95);
     link.click();
-  });
+  }
+
+  downloadPngBtn.addEventListener('click', () => downloadImage('png'));
+  downloadJpegBtn.addEventListener('click', () => downloadImage('jpeg'));
+
+  // --- Initialize saved templates list ---
+  renderSavedTemplatesList();
+  updateSaveButtonState();
+
 </script>
 
-<p><small>Drag the <b>blue dot</b> to move text boxes. Resize boxes using the corner handle. Click inside a box to edit text and see style controls above it (bold, italic, text size, font family, color). Use your device’s native zoom. Text editing works normally.</small></p>
+<p><small>Drag the <b>blue dot</b> to move text boxes. Resize them using the textarea corner handle. Click inside a box to edit text and see style controls above it (bold, italic, font size, font family, color). Use your device’s native zoom. Text editing works normally.</small></p>
 
 </body>
 </html>
