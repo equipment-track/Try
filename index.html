@@ -742,7 +742,468 @@
       });
     };
   }
+// Lock toggle function
+  function toggleLockTextBox(wrapper, lockBtn, textarea, dragHandle) {
+    if (wrapper.classList.contains('locked')) {
+      wrapper.classList.remove('locked');
+      textarea.removeAttribute('readonly');
+      textarea.style.cursor = 'text';
+      textarea.style.userSelect = 'text';
+      textarea.style.backgroundColor = 'rgba(255,255,255,0.7)';
+      dragHandle.style.cursor = 'grab';
+      dragHandle.style.backgroundColor = 'var(--drag-handle-bg)';
+      lockBtn.textContent = '🔓';
+      lockBtn.title = 'Lock Text Box';
+    } else {
+      wrapper.classList.add('locked');
+      textarea.setAttribute('readonly', 'readonly');
+      textarea.style.cursor = 'default';
+      textarea.style.userSelect = 'none';
+      textarea.style.backgroundColor = '#eee';
+      dragHandle.style.cursor = 'default';
+      dragHandle.style.backgroundColor = '#999';
+      lockBtn.textContent = '🔒';
+      lockBtn.title = 'Unlock Text Box';
+      if (focusedTextarea === textarea) {
+        focusedTextarea = null;
+        hideStyleControls();
+      }
+    }
+  }
 
+  // Floating toolbar style handlers
+  function updateStyleControlsPosition() {
+    if (!focusedTextarea) {
+      styleControls.classList.remove('visible');
+      styleControls.setAttribute('aria-hidden', 'true');
+      return;
+    }
+    const wrapper = focusedTextarea.parentElement;
+    if(wrapper.classList.contains('locked')) {
+      styleControls.classList.remove('visible');
+      styleControls.setAttribute('aria-hidden', 'true');
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const textareaRect = focusedTextarea.getBoundingClientRect();
+    const top = textareaRect.top - containerRect.top + container.scrollTop;
+    const left = textareaRect.left - containerRect.left + container.scrollLeft;
+    const toolbarHeight = styleControls.offsetHeight;
+    const toolbarWidth = styleControls.offsetWidth;
+    let posTop = top - toolbarHeight - 8;
+    let posLeft = left;
+    if (posTop < container.scrollTop) posTop = top + focusedTextarea.offsetHeight + 8;
+    if (posLeft + toolbarWidth > container.scrollLeft + container.clientWidth)
+      posLeft = container.scrollLeft + container.clientWidth - toolbarWidth - 8;
+    if (posLeft < container.scrollLeft) posLeft = container.scrollLeft + 8;
+    styleControls.style.top = posTop + 'px';
+    styleControls.style.left = posLeft + 'px';
+    styleControls.classList.add('visible');
+    styleControls.setAttribute('aria-hidden', 'false');
+    boldBtn.classList.toggle('active', focusedTextarea.style.fontWeight === 'bold');
+    boldBtn.setAttribute('aria-pressed', focusedTextarea.style.fontWeight === 'bold');
+    italicBtn.classList.toggle('active', focusedTextarea.style.fontStyle === 'italic');
+    italicBtn.setAttribute('aria-pressed', focusedTextarea.style.fontStyle === 'italic');
+    fontSizeSelect.value = focusedTextarea.style.fontSize || '16px';
+    fontFamilySelect.value = focusedTextarea.style.fontFamily || 'Arial, sans-serif';
+    fontColorPicker.value = rgbToHex(focusedTextarea.style.color) || '#000000';
+  }
+  function hideStyleControls() {
+    styleControls.classList.remove('visible');
+    styleControls.setAttribute('aria-hidden', 'true');
+  }
+  boldBtn.addEventListener('click', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontWeight = focusedTextarea.style.fontWeight === 'bold' ? 'normal' : 'bold';
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+  });
+  italicBtn.addEventListener('click', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontStyle = focusedTextarea.style.fontStyle === 'italic' ? 'normal' : 'italic';
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+  });
+  fontSizeSelect.addEventListener('change', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontSize = fontSizeSelect.value;
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+  });
+  fontFamilySelect.addEventListener('change', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontFamily = fontFamilySelect.value;
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+  });
+  fontColorPicker.addEventListener('input', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.color = fontColorPicker.value;
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+  });
+  zoomableContent.addEventListener('focusin', e => {
+    if (e.target.tagName === 'TEXTAREA' && !e.target.parentElement.classList.contains('locked')) {
+      focusedTextarea = e.target;
+      updateStyleControlsPosition();
+      container.addEventListener('scroll', updateStyleControlsPosition);
+      window.addEventListener('resize', updateStyleControlsPosition);
+    }
+  });
+  zoomableContent.addEventListener('focusout', e => {
+    setTimeout(() => {
+      const active = document.activeElement;
+      if (focusedTextarea && (active === focusedTextarea || styleControls.contains(active))) return;
+      focusedTextarea = null;
+      hideStyleControls();
+      container.removeEventListener('scroll', updateStyleControlsPosition);
+      window.removeEventListener('resize', updateStyleControlsPosition);
+    }, 0);
+  });
+
+  // Dragging implementation
+  function getPointerPos(e) {
+    if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.clientX !== undefined && e.clientY !== undefined) return { x: e.clientX, y: e.clientY };
+    return null;
+  }
+  function makeDraggable(wrapper, handle) {
+    let isDragging = false;
+    let startX, startY;
+    let origX, origY;
+    function dragStart(e) {
+      if (wrapper.classList.contains('locked')) return;
+      e.preventDefault();
+      const pointer = getPointerPos(e);
+      if (!pointer) return;
+      isDragging = true;
+      startX = pointer.x;
+      startY = pointer.y;
+      const rect = wrapper.getBoundingClientRect();
+      origX = rect.left;
+      origY = rect.top;
+      handle.style.cursor = 'grabbing';
+      wrapper.style.zIndex = 9999;
+    }
+    function dragMove(e) {
+      if (!isDragging) return;
+      e.preventDefault();
+      const pointer = getPointerPos(e);
+      if (!pointer) return;
+      let dx = pointer.x - startX;
+      let dy = pointer.y - startY;
+      const containerRect = zoomableContent.getBoundingClientRect();
+      let newLeft = origX + dx - containerRect.left;
+      let newTop = origY + dy - containerRect.top;
+      newLeft = Math.max(0, Math.min(newLeft, containerRect.width - wrapper.offsetWidth));
+      newTop = Math.max(0, Math.min(newTop, containerRect.height - wrapper.offsetHeight));
+      wrapper.style.left = newLeft + 'px';
+      wrapper.style.top = newTop + 'px';
+      if (focusedTextarea && focusedTextarea.parentElement === wrapper) updateStyleControlsPosition();
+    }
+    function dragEnd() {
+      if (!isDragging) return;
+      isDragging = false;
+      handle.style.cursor = 'grab';
+      wrapper.style.zIndex = '';
+    }
+    if (window.PointerEvent) {
+      handle.style.touchAction = 'none';
+      handle.addEventListener('pointerdown', dragStart);
+      window.addEventListener('pointermove', dragMove);
+      window.addEventListener('pointerup', dragEnd);
+      window.addEventListener('pointercancel', dragEnd);
+    } else {
+      handle.addEventListener('mousedown', dragStart);
+      handle.addEventListener('touchstart', dragStart, { passive: false });
+      window.addEventListener('mousemove', dragMove);
+      window.addEventListener('touchmove', dragMove, { passive: false });
+      window.addEventListener('mouseup', dragEnd);
+      window.addEventListener('touchend', dragEnd);
+      window.addEventListener('touchcancel', dragEnd);
+    }
+  }
+  function attachTextboxListeners(textarea) {
+    textarea.addEventListener('input', () => {});
+    ['blur', 'focus', 'keyup', 'mouseup'].forEach(evt => {
+      textarea.addEventListener(evt, () => {
+        if (textarea === focusedTextarea) updateStyleControlsPosition();
+      });
+    });
+  }
+
+  // Image upload handler
+  imageUploader.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = event => {
+      zoomableContent.innerHTML = '';
+      imageElement = new Image();
+      imageElement.src = event.target.result;
+      imageElement.draggable = false;
+      imageElement.style.userSelect = 'none';
+      imageElement.style.position = 'relative';
+      imageElement.style.maxWidth = '100%';
+      imageElement.style.height = 'auto';
+      imageElement.onload = () => {
+        zoomableContent.appendChild(imageElement);
+        showControls();
+      };
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Download popup handlers
+  downloadBtn.addEventListener('click', () => {
+    if (!imageElement) {
+      alert('Please upload or load a template first.');
+      return;
+    }
+    downloadFormatPopup.style.display = 'block';
+    downloadFormatPopup.focus();
+  });
+  cancelDownloadPopup.addEventListener('click', () => {
+    downloadFormatPopup.style.display = 'none';
+  });
+  confirmDownloadBtn.addEventListener('click', () => {
+    const selected = downloadFormatPopup.querySelector('input[name="exportFormat"]:checked');
+    if (!selected) {
+      alert('Please select an export format.');
+      return;
+    }
+    downloadFormatPopup.style.display = 'none';
+    if (selected.value === 'pdf') exportPdfPopup();
+    else exportImage(selected.value);
+  });
+
+  // Export image PNG or JPEG
+  function exportImage(type) {
+    const canvas = document.createElement('canvas');
+    canvas.width = imageElement.naturalWidth;
+    canvas.height = imageElement.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+    const imageRect = imageElement.getBoundingClientRect();
+    const zoomableRect = zoomableContent.getBoundingClientRect();
+    const scaleX = canvas.width / imageRect.width;
+    const scaleY = canvas.height / imageRect.height;
+
+    zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
+      const textarea = wrapper.querySelector('textarea');
+      if (wrapper.classList.contains('locked')) return;
+      const style = window.getComputedStyle(textarea);
+      const fontSize = parseInt(style.fontSize);
+      const fontFamily = style.fontFamily;
+      const fontWeight = style.fontWeight;
+      const fontStyle = style.fontStyle;
+      const color = style.color || '#000';
+      const wrapperLeft = parseFloat(wrapper.style.left || 0);
+      const wrapperTop = parseFloat(wrapper.style.top || 0);
+      const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
+      const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
+      const x = offsetX * scaleX;
+      const y = offsetY * scaleY;
+      ctx.fillStyle = color;
+      ctx.font = `${fontStyle} ${fontWeight} ${fontSize * scaleX}px ${fontFamily}`;
+      ctx.textBaseline = 'top';
+      const lines = textarea.value.split('\n');
+      const lineHeight = fontSize * 1.2 * scaleY;
+      lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
+    });
+
+    const link = document.createElement('a');
+    link.download = `edited-image.${type}`;
+    link.href = (type === 'png') ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.95);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  // PDF Export popup (print to PDF)
+  function exportPdfPopup() {
+    if (!imageElement) {
+      alert('Please upload or load a template first.');
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = imageElement.naturalWidth;
+    canvas.height = imageElement.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+    const imageRect = imageElement.getBoundingClientRect();
+    const zoomableRect = zoomableContent.getBoundingClientRect();
+    const scaleX = canvas.width / imageRect.width;
+    const scaleY = canvas.height / imageRect.height;
+    zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
+      const textarea = wrapper.querySelector('textarea');
+      const style = window.getComputedStyle(textarea);
+      const fontSize = parseInt(style.fontSize);
+      const fontFamily = style.fontFamily;
+      const fontWeight = style.fontWeight;
+      const fontStyle = style.fontStyle;
+      const color = style.color || '#000';
+      const wrapperLeft = parseFloat(wrapper.style.left || 0);
+      const wrapperTop = parseFloat(wrapper.style.top || 0);
+      const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
+      const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
+      const x = offsetX * scaleX;
+      const y = offsetY * scaleY;
+      ctx.fillStyle = color;
+      ctx.font = `${fontStyle} ${fontWeight} ${fontSize * scaleX}px ${fontFamily}`;
+      ctx.textBaseline = 'top';
+      const lines = textarea.value.split('\n');
+      const lineHeight = fontSize * 1.2 * scaleY;
+      lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
+    });
+    const dataUrl = canvas.toDataURL('image/png');
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Popup blocked. Please allow popups to export PDF.");
+      return;
+    }
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Export as PDF - Print and Save</title>
+          <style>body,html{margin:0;padding:0;height:100%;}
+          img{max-width:100%;height:auto;display:block;margin:0 auto;}
+          @media print{body{margin:0;}img{max-width:100%;height:auto;}}</style>
+        </head>
+        <body>
+          <img src="${dataUrl}" alt="Image to Export as PDF" />
+          <script>window.onload=()=>{window.focus();window.print();}<\/script>
+        </body>
+      </html>`);
+    printWindow.document.close();
+  }
+
+  // Share JPEG button, using Web Share API with fallback
+  shareBtn.addEventListener('click', () => {
+    if (!imageElement) {
+      alert("Please upload or load a template first.");
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = imageElement.naturalWidth;
+    canvas.height = imageElement.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+    const imageRect = imageElement.getBoundingClientRect();
+    const zoomableRect = zoomableContent.getBoundingClientRect();
+    const scaleX = canvas.width / imageRect.width;
+    const scaleY = canvas.height / imageRect.height;
+    zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
+      const textarea = wrapper.querySelector('textarea');
+      if (wrapper.classList.contains('locked')) return;
+      const style = window.getComputedStyle(textarea);
+      const fontSize = parseInt(style.fontSize);
+      const fontFamily = style.fontFamily;
+      const fontWeight = style.fontWeight;
+      const fontStyle = style.fontStyle;
+      const color = style.color || '#000';
+      const wrapperLeft = parseFloat(wrapper.style.left || 0);
+      const wrapperTop = parseFloat(wrapper.style.top || 0);
+      const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
+      const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
+      const x = offsetX * scaleX;
+      const y = offsetY * scaleY;
+      ctx.fillStyle = color;
+      ctx.font = `${fontStyle} ${fontWeight} ${fontSize * scaleX}px ${fontFamily}`;
+      ctx.textBaseline = 'top';
+      const lines = textarea.value.split('\n');
+      const lineHeight = fontSize * 1.2 * scaleY;
+      lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
+    });
+    canvas.toBlob(blob => {
+      if (navigator.canShare && navigator.canShare({ files: [new File([blob], 'template.jpeg', { type: 'image/jpeg' })] })) {
+        const file = new File([blob], 'template.jpeg', { type: 'image/jpeg' });
+        navigator.share({
+          files: [file],
+          title: 'Shared Image Template',
+          text: 'Check out this image template.'
+        }).catch(() => alert('Sharing cancelled or failed.'));
+      } else {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'template.jpeg';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        alert('Sharing not supported on this device. The image has been downloaded instead.');
+      }
+    }, 'image/jpeg', 0.95);
+  });
+
+  // RGB to hex helper
+  function rgbToHex(rgb) {
+    if (!rgb) return null;
+    const res = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if (!res) return null;
+    return "#" + [res[1], res[2], res[3]].map(x => ("0" + parseInt(x).toString(16)).slice(-2)).join('');
+  }
+
+  // Clear all button
+  clearAllBtn.addEventListener('click', () => {
+    if (confirm('Clear all text boxes and remove image?')) {
+      zoomableContent.innerHTML = '';
+      imageElement = null;
+      controls.style.display = 'none';
+      savedTemplatesContainer.style.display = 'none';
+      toggleSavedTemplatesBtn.style.display = 'none';
+      clearAllBtn.style.display = 'none';
+      styleControls.classList.remove('visible');
+      downloadBtn.disabled = true;
+      shareBtn.disabled = true;
+      saveTemplateBtn.disabled = true;
+      templateNameInput.value = '';
+    }
+  });
+
+  // Duplicate text box function
+  function duplicateTextBox(wrapper) {
+    const textarea = wrapper.querySelector('textarea');
+    const newWrapper = document.createElement('div');
+    newWrapper.className = 'textbox-wrapper';
+    newWrapper.style.top = (parseFloat(wrapper.style.top) + 20) + 'px';
+    newWrapper.style.left = (parseFloat(wrapper.style.left) + 20) + 'px';
+    const newTextarea = document.createElement('textarea');
+    ['fontWeight','fontStyle','fontSize','fontFamily','color'].forEach(k => newTextarea.style[k] = textarea.style[k]);
+    newTextarea.value = textarea.value;
+    newTextarea.style.width = textarea.style.width;
+    newTextarea.style.height = textarea.style.height;
+    newWrapper.appendChild(newTextarea);
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'drag-handle';
+    dragHandle.textContent = '●';
+    newWrapper.appendChild(dragHandle);
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'textbox-buttons';
+    const dupBtn = document.createElement('button');
+    dupBtn.title = 'Duplicate';
+    dupBtn.textContent = '⎘';
+    dupBtn.addEventListener('click', () => duplicateTextBox(newWrapper));
+    btnContainer.appendChild(dupBtn);
+    const lockBtn = document.createElement('button');
+    lockBtn.title = 'Lock Text Box';
+    lockBtn.textContent = '🔓';
+    lockBtn.addEventListener('click', () => toggleLockTextBox(newWrapper, lockBtn, newTextarea, dragHandle));
+    btnContainer.appendChild(lockBtn);
+    const delBtn = document.createElement('button');
+    delBtn.title = 'Delete';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', () => {
+      if(confirm("Delete this text box?")) {
+        newWrapper.remove();
+        hideStyleControls();
+      }
+    });
+    btnContainer.appendChild(delBtn);
+    newWrapper.appendChild(btnContainer);
+    zoomableContent.appendChild(newWrapper);
+    makeDraggable(newWrapper, dragHandle);
+    attachTextboxListeners(newTextarea);
+  }
   // Additional functions for duplication, lock toggle, style toolbar, dragging, export, sharing, etc.
   // (Use the same functions and logic described in previous messages; too long to duplicate here fully.)
 
