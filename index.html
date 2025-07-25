@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Image Editor with Drag Handle, Resizable Textboxes & Text Styles</title>
+<title>Image Editor with Dynamic Text Style Controls</title>
 <style>
   body {
     font-family: Arial, sans-serif;
     padding: 10px;
-    -webkit-user-select: text; /* Allow text selection */
+    -webkit-user-select: text;
     -webkit-touch-callout: default;
   }
   #container {
@@ -42,7 +42,7 @@
     padding: 4px;
     border: 1px dashed #666;
     background: rgba(255,255,255,0.7);
-    resize: both; /* Enable native resize (both directions) */
+    resize: both;
     width: 200px;
     height: 60px;
     box-sizing: border-box;
@@ -76,14 +76,44 @@
     font-size: 14px;
   }
   #styleControls {
-    margin-top: 10px;
+    position: absolute;
+    display: flex;
+    gap: 8px;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     user-select: none;
+    z-index: 2000;
+    visibility: hidden;
+    transition: visibility 0.2s, opacity 0.2s;
+    opacity: 0;
+  }
+  #styleControls.visible {
+    visibility: visible;
+    opacity: 1;
+  }
+  #styleControls button, #styleControls select {
+    cursor: pointer;
+    font-size: 14px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 4px 8px;
+  }
+  #styleControls button.active {
+    background-color: #007bff;
+    color: white;
+  }
+  #styleControls select {
+    min-width: 60px;
   }
 </style>
 </head>
 <body>
 
-<h2>Image Editor with Drag Handle, Resizable Textboxes & Text Styles</h2>
+<h2>Image Editor with Dynamic Text Style Controls</h2>
 
 <input type="file" id="imageUploader" accept="image/*" />
 <div id="container">
@@ -94,11 +124,22 @@
   <button id="addTextBoxBtn">Add Text Box</button>
   <button id="downloadBtn">Download Image</button>
   <span style="margin-left:20px;">Use your device’s native zoom controls (pinch zoom, browser zoom). Drag blue dot to move boxes.</span>
+</div>
 
-  <div id="styleControls">
-    <button id="boldBtn" title="Toggle Bold"><b>B</b></button>
-    <button id="italicBtn" title="Toggle Italic"><i>I</i></button>
-  </div>
+<!-- Floating style toolbar -->
+<div id="styleControls">
+  <button id="boldBtn" title="Toggle Bold"><b>B</b></button>
+  <button id="italicBtn" title="Toggle Italic"><i>I</i></button>
+  <select id="fontSizeSelect" title="Select Text Size">
+    <option value="12px">12</option>
+    <option value="14px">14</option>
+    <option value="16px" selected>16</option>
+    <option value="18px">18</option>
+    <option value="20px">20</option>
+    <option value="24px">24</option>
+    <option value="28px">28</option>
+    <option value="32px">32</option>
+  </select>
 </div>
 
 <script>
@@ -108,41 +149,64 @@
   const controls = document.getElementById('controls');
   const addTextBoxBtn = document.getElementById('addTextBoxBtn');
   const downloadBtn = document.getElementById('downloadBtn');
+
+  const styleControls = document.getElementById('styleControls');
   const boldBtn = document.getElementById('boldBtn');
   const italicBtn = document.getElementById('italicBtn');
+  const fontSizeSelect = document.getElementById('fontSizeSelect');
 
   let imageElement = null;
   let focusedTextarea = null;
 
-  // Focus tracking: track currently focused textarea for styling
-  zoomableContent.addEventListener('focusin', e => {
-    if (e.target.tagName === 'TEXTAREA') {
-      focusedTextarea = e.target;
-      updateStyleButtons();
-    }
-  });
-
-  zoomableContent.addEventListener('focusout', e => {
-    if (e.target === focusedTextarea) {
-      focusedTextarea = null;
-      updateStyleButtons();
-    }
-  });
-
-  function updateStyleButtons() {
+  // Show/hide styleControls and position above focused textarea
+  function updateStyleControlsPosition() {
     if (!focusedTextarea) {
-      boldBtn.disabled = true;
-      italicBtn.disabled = true;
-      boldBtn.style.backgroundColor = '';
-      italicBtn.style.backgroundColor = '';
+      styleControls.classList.remove('visible');
       return;
     }
-    boldBtn.disabled = false;
-    italicBtn.disabled = false;
-    boldBtn.style.backgroundColor = focusedTextarea.style.fontWeight === 'bold' ? '#add8e6' : '';
-    italicBtn.style.backgroundColor = focusedTextarea.style.fontStyle === 'italic' ? '#add8e6' : '';
+    const wrapper = focusedTextarea.parentElement;
+    const containerRect = container.getBoundingClientRect();
+    const textareaRect = focusedTextarea.getBoundingClientRect();
+
+    // Calculate position relative to container scroll and edges
+    const top = textareaRect.top - containerRect.top + container.scrollTop;
+    const left = textareaRect.left - containerRect.left + container.scrollLeft;
+
+    // Position the controls slightly above and slightly left aligned with textarea
+    const controlsHeight = styleControls.offsetHeight;
+    const controlsWidth = styleControls.offsetWidth;
+
+    let posTop = top - controlsHeight - 8; // 8px margin
+    let posLeft = left;
+
+    // Prevent going off top of container
+    if (posTop < container.scrollTop) posTop = top + focusedTextarea.offsetHeight + 8;
+
+    // Prevent going off left/right of container
+    if (posLeft + controlsWidth > container.scrollLeft + container.clientWidth) {
+      posLeft = container.scrollLeft + container.clientWidth - controlsWidth - 8;
+    }
+    if (posLeft < container.scrollLeft) posLeft = container.scrollLeft + 8;
+
+    // Apply position in px and make visible
+    styleControls.style.top = posTop + 'px';
+    styleControls.style.left = posLeft + 'px';
+    styleControls.classList.add('visible');
+
+    // Update buttons active states
+    boldBtn.classList.toggle('active', focusedTextarea.style.fontWeight === 'bold');
+    italicBtn.classList.toggle('active', focusedTextarea.style.fontStyle === 'italic');
+
+    // Update font size select value or fallback to 16px
+    fontSizeSelect.value = focusedTextarea.style.fontSize || '16px';
   }
 
+  // Hide the style controls
+  function hideStyleControls() {
+    styleControls.classList.remove('visible');
+  }
+
+  // Update textarea style for bold
   boldBtn.addEventListener('click', () => {
     if (!focusedTextarea) return;
     if (focusedTextarea.style.fontWeight === 'bold') {
@@ -150,9 +214,11 @@
     } else {
       focusedTextarea.style.fontWeight = 'bold';
     }
-    updateStyleButtons();
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
   });
 
+  // Update textarea style for italic
   italicBtn.addEventListener('click', () => {
     if (!focusedTextarea) return;
     if (focusedTextarea.style.fontStyle === 'italic') {
@@ -160,10 +226,42 @@
     } else {
       focusedTextarea.style.fontStyle = 'italic';
     }
-    updateStyleButtons();
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
   });
 
-  // Image upload
+  // Update textarea font size
+  fontSizeSelect.addEventListener('change', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontSize = fontSizeSelect.value;
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+  });
+
+  // Track focusin/focusout on textareas inside zoomable content
+  zoomableContent.addEventListener('focusin', e => {
+    if (e.target.tagName === 'TEXTAREA') {
+      focusedTextarea = e.target;
+      updateStyleControlsPosition();
+      // Attach scroll listener on container to reposition controls on scroll
+      container.addEventListener('scroll', updateStyleControlsPosition);
+    }
+  });
+
+  zoomableContent.addEventListener('focusout', e => {
+    if (e.target === focusedTextarea) {
+      focusedTextarea = null;
+      hideStyleControls();
+      container.removeEventListener('scroll', updateStyleControlsPosition);
+    }
+  });
+
+  // On window resize also reposition controls if visible
+  window.addEventListener('resize', () => {
+    if (focusedTextarea) updateStyleControlsPosition();
+  });
+
+  // Image upload handler
   imageUploader.addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -212,7 +310,7 @@
     makeDraggable(wrapper, dragHandle);
   });
 
-  // Drag implementation
+  // Drag implementation on handle for mouse/touch/pointer
   function makeDraggable(wrapper, handle) {
     let isDragging = false;
     let startX, startY;
@@ -222,8 +320,6 @@
       if (e.touches && e.touches.length > 0) {
         return { x: e.touches[0].clientX, y: e.touches[0].clientY };
       } else if (e.clientX !== undefined && e.clientY !== undefined) {
-        return { x: e.clientX, y: e.clientY };
-      } else if (e.pointerType) {
         return { x: e.clientX, y: e.clientY };
       }
       return null;
@@ -256,12 +352,16 @@
       let newLeft = origX + dx - containerRect.left;
       let newTop = origY + dy - containerRect.top;
 
-      // Clamp position inside image area
       newLeft = Math.max(0, Math.min(newLeft, containerRect.width - wrapper.offsetWidth));
       newTop = Math.max(0, Math.min(newTop, containerRect.height - wrapper.offsetHeight));
 
       wrapper.style.left = newLeft + 'px';
       wrapper.style.top = newTop + 'px';
+
+      // If focused textarea is this one, reposition controls to follow box movement
+      if (focusedTextarea && focusedTextarea.parentElement === wrapper) {
+        updateStyleControlsPosition();
+      }
     }
 
     function dragEnd(e) {
@@ -287,7 +387,7 @@
     }
   }
 
-  // Download final image
+  // Download final image with styled text boxes
   downloadBtn.addEventListener('click', () => {
     if (!imageElement) {
       alert("Please upload an image first.");
@@ -312,7 +412,6 @@
       const textarea = wrapper.querySelector('textarea');
       const style = window.getComputedStyle(textarea);
 
-      // Get font styles from textarea including weight and style
       const fontSize = parseInt(style.fontSize);
       const fontFamily = style.fontFamily;
       const fontWeight = style.fontWeight;
@@ -340,14 +439,14 @@
       });
     });
 
-    const link = document.createElement('a');
-    link.download = 'edited-image.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+  const link = document.createElement('a');
+  link.download = 'edited-image.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
   });
 </script>
 
-<p><small>Drag the <b>blue dot</b> to move text boxes. Resize boxes using the corner handle. Use <b>B</b> and <i>I</i> buttons to toggle bold and italic styles on the selected box. Use your device’s native zoom controls. Text editing works normally inside boxes.</small></p>
+<p><small>Drag the <b>blue dot</b> to move text boxes. Resize boxes using the corner handle. Click inside a box to edit text and see style controls above it (bold, italic, text size). Use your device’s native zoom. Text editing works normally.</small></p>
 
 </body>
 </html>
