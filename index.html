@@ -3,75 +3,1133 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Image Editor with Dark Mode & Cursive Fonts</title>
-<link href="https://fonts.googleapis.com/css2?family=Dancing+Script&family=Pacifico&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css" />
+<title>Image Editor with Dark Mode & Clean UI</title>
+<style>
+  /* Root variables for light and dark themes */
+  :root {
+    --bg-color: #fff;
+    --text-color: #202124;
+    --border-color: #dadce0;
+    --primary-color: #1a73e8;
+    --primary-hover: #1765cc;
+    --primary-shadow: rgba(26, 115, 232, 0.4);
+    --button-bg: #f8f9fa;
+    --button-hover-bg: #e8f0fe;
+    --button-text: var(--primary-color);
+    --drag-handle-bg: #1a73e8;
+    --drag-handle-hover-bg: #1765cc;
+    --input-bg: #fff;
+    --input-text: var(--text-color);
+    --toolbar-bg: #fff;
+    --modal-bg: #fff;
+    --modal-border: var(--primary-color);
+  }
+  html.dark {
+    --bg-color: #202124;
+    --text-color: #e8eaed;
+    --border-color: #5f6368;
+    --primary-color: #8ab4f8;
+    --primary-hover: #669df6;
+    --primary-shadow: rgba(138, 180, 248, 0.6);
+    --button-bg: #303134;
+    --button-hover-bg: #3c4043;
+    --button-text: var(--primary-color);
+    --drag-handle-bg: #8ab4f8;
+    --drag-handle-hover-bg: #669df6;
+    --input-bg: #303134;
+    --input-text: var(--text-color);
+    --toolbar-bg: #303134;
+    --modal-bg: #434343;
+    --modal-border: var(--primary-color);
+  }
+
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
+    margin: 10px;
+    user-select: text;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  h2 {
+    font-weight: 400;
+    margin-bottom: 12px;
+  }
+
+  /* Container holding image and text boxes */
+  #container {
+    position: relative;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: auto;
+    max-width: 900px;
+    max-height: 75vh;
+    background-color: var(--bg-color);
+    box-shadow: 0 1px 3px rgba(60,64,67,0.15), 0 4px 8px rgba(60,64,67,0.10);
+    margin-bottom: 20px;
+  }
+
+  #zoomable-content {
+    position: relative;
+    user-select: none;
+  }
+
+  #zoomable-content img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    user-select: none;
+    -webkit-user-drag: none;
+    user-drag: none;
+  }
+
+  /* Textbox wrapper */
+  .textbox-wrapper {
+    position: absolute;
+    display: inline-block;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    transition: box-shadow 0.3s ease;
+    box-sizing: border-box;
+  }
+
+  .textbox-wrapper.locked {
+    opacity: 0.7;
+  }
+
+  .textbox-wrapper:hover:not(.locked),
+  .textbox-wrapper:focus-within:not(.locked) {
+    box-shadow: 0 0 10px var(--primary-shadow);
+    border-color: var(--primary-color);
+  }
+
+  /* Text area inside the box */
+  .textbox-wrapper textarea {
+    font-size: 16px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: none;
+    background: var(--input-bg);
+    color: var(--input-text);
+    resize: both;
+    width: 200px;
+    height: 60px;
+    box-sizing: border-box;
+    cursor: text;
+    overflow-wrap: break-word;
+    font-weight: normal;
+    font-style: normal;
+    font-family: Arial, sans-serif;
+    outline: none;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  .textbox-wrapper.locked textarea {
+    cursor: default;
+    user-select: none;
+    background: #eee;
+  }
+
+  /* Drag handle - blue dot */
+  .drag-handle {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    width: 24px;
+    height: 24px;
+    background-color: var(--drag-handle-bg);
+    border-radius: 50%;
+    cursor: grab;
+    z-index: 1002;
+    touch-action: none;
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    user-select: none;
+    transition: background-color 0.3s ease;
+  }
+
+  .drag-handle:hover {
+    background-color: var(--drag-handle-hover-bg);
+  }
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+  .textbox-wrapper.locked .drag-handle {
+    cursor: default;
+    background-color: #999;
+  }
+
+  /* Text box buttons container */
+  .textbox-buttons {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    display: flex;
+    gap: 4px;
+    z-index: 1003;
+  }
+  .textbox-buttons button {
+    font-size: 12px;
+    background: var(--primary-color);
+    border: none;
+    color: white;
+    border-radius: 3px;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    user-select: none;
+    transition: background-color 0.2s ease;
+  }
+  .textbox-buttons button:hover {
+    background: var(--primary-hover);
+  }
+
+  /* Buttons on top for saved templates toggle, dark mode, etc */
+  #topButtons {
+    margin-bottom: 12px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  #topButtons button {
+    background: var(--button-bg);
+    border: 1px solid var(--border-color);
+    color: var(--button-text);
+    padding: 6px 14px;
+    font-size: 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 1px 1px rgb(60 64 67 / 0.1);
+    user-select: none;
+    transition:
+      background-color 0.3s ease,
+      box-shadow 0.3s ease;
+  }
+  #topButtons button:hover, #topButtons button:focus-visible {
+    background-color: var(--button-hover-bg);
+    box-shadow: 0 4px 8px var(--primary-shadow);
+    outline: none;
+  }
+
+  #clearAllBtn {
+    background-color: #d93025;
+    color: white;
+    border: none;
+    box-shadow: none;
+  }
+  #clearAllBtn:hover, #clearAllBtn:focus-visible {
+    background-color: #b3271b;
+    box-shadow: none;
+  }
+
+  /* Controls container */
+  #controls {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  #controls button,
+  #controls input,
+  #controls select {
+    background: var(--button-bg);
+    border: 1px solid var(--border-color);
+    color: var(--button-text);
+    padding: 6px 14px;
+    font-size: 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 1px 1px rgb(60 64 67 / 0.1);
+    user-select: none;
+    transition:
+      background-color 0.3s ease,
+      box-shadow 0.3s ease;
+  }
+  #controls input, #controls select {
+    border-radius: 12px;
+  }
+  #controls button:hover:not(:disabled), #controls button:focus-visible:not(:disabled),
+  #controls input:focus-visible,
+  #controls select:focus-visible {
+    background-color: var(--button-hover-bg);
+    box-shadow: 0 4px 8px var(--primary-shadow);
+    outline: none;
+  }
+  #controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  /* Saved templates list styling */
+  #savedTemplatesContainer {
+    max-height: 170px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-color);
+    padding: 8px 12px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    user-select: none;
+    box-shadow: 0 3px 6px rgb(60 64 67 / 0.15);
+  }
+  #savedTemplatesList {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+  }
+  #savedTemplatesList li {
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  #savedTemplatesList li:hover {
+    background-color: var(--button-hover-bg);
+  }
+  #savedTemplatesList li span {
+    cursor: pointer;
+    flex-grow: 1;
+  }
+  #savedTemplatesList li button {
+    background-color: transparent;
+    border: none;
+    color: var(--primary-color);
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    user-select: none;
+    transition: background-color 0.2s ease;
+  }
+  #savedTemplatesList li button:hover, #savedTemplatesList li button:focus-visible {
+    background-color: var(--button-hover-bg);
+    outline: none;
+  }
+
+  /* Floating style toolbar */
+  #styleControls {
+    position: absolute;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    padding: 6px 14px;
+    box-shadow: 0 3px 6px rgb(60 64 67 / 0.15);
+    user-select: none;
+    z-index: 2000;
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0.2s ease, opacity 0.3s ease;
+  }
+  #styleControls.visible {
+    visibility: visible;
+    opacity: 1;
+  }
+  #styleControls button,
+  #styleControls select,
+  #styleControls input[type="color"] {
+    cursor: pointer;
+    font-size: 14px;
+    background: var(--button-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    padding: 6px 10px;
+    line-height: 1;
+    min-width: 34px;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  #styleControls button.active {
+    background-color: var(--primary-color);
+    color: white;
+    box-shadow: 0 4px 8px var(--primary-shadow);
+  }
+  #styleControls button:hover:not(.active), #styleControls button:focus-visible:not(.active),
+  #styleControls select:hover, #styleControls select:focus-visible,
+  #styleControls input[type="color"]:hover, #styleControls input[type="color"]:focus-visible {
+    background-color: var(--button-hover-bg);
+    outline: none;
+    box-shadow: 0 3px 8px var(--primary-shadow);
+  }
+  #styleControls select {
+    min-width: 80px;
+  }
+  #styleControls input[type="color"] {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+  }
+
+  /* Modal popup for download format */
+  #downloadFormatPopup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--modal-bg);
+    border: 2px solid var(--modal-border);
+    border-radius: 6px;
+    padding: 20px 30px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    z-index: 3000;
+    display: none;
+    font-size: 15px;
+    color: var(--text-color);
+    user-select: none;
+    width: 280px;
+  }
+  #downloadFormatPopup strong {
+    display: block;
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+  #downloadFormatPopup label {
+    display: block;
+    margin-bottom: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  #downloadFormatPopup input[type="radio"] {
+    margin-right: 10px;
+  }
+  #downloadFormatPopup button {
+    margin-top: 16px;
+    padding: 8px 20px;
+    font-size: 15px;
+    border-radius: 24px;
+    border: none;
+    cursor: pointer;
+    background-color: var(--primary-color);
+    color: white;
+    box-shadow: 0 4px 12px var(--primary-shadow);
+    transition: background-color 0.3s ease;
+  }
+  #downloadFormatPopup button:hover, #downloadFormatPopup button:focus-visible {
+    background-color: var(--primary-hover);
+    outline: none;
+  }
+  #downloadFormatPopup #cancelDownloadPopup {
+    background-color: #ccc;
+    color: #333;
+    margin-left: 12px;
+    box-shadow: none;
+  }
+
+</style>
 </head>
 <body>
 
 <h2>
   Image Editor
-  <label class="dark-label" for="darkToggle" style="cursor:pointer; user-select:none;">
-    <input type="checkbox" id="darkToggle" aria-label="Toggle Dark Mode" />
+  <label style="display:inline-flex; align-items:center; cursor:pointer;">
+    <input type="checkbox" id="darkModeToggle" aria-label="Toggle Dark Mode" style="margin-right:8px" />
     Dark Mode
   </label>
 </h2>
 
-<input type="file" id="imageUploader" accept="image/*" aria-label="Upload Image" />
-
-<div id="topButtons" style="margin-top:12px;">
-  <button id="toggleSavedBtn">Show Saved Templates</button>
+<div id="topButtons">
+  <button id="toggleSavedTemplatesBtn" style="display:none;">Show Saved Templates</button>
   <button id="clearAllBtn" style="display:none;">New Project</button>
 </div>
 
-<div id="savedTemplates" aria-live="polite" aria-label="Saved Templates" tabindex="-1" style="display:none;">
-  <ul id="savedTemplatesList" tabindex="0"></ul>
+<div id="savedTemplatesContainer" aria-live="polite" aria-label="Saved Templates">
+  <ul id="savedTemplatesList"></ul>
 </div>
 
-<div id="controls" style="display:none;">
-  <button id="addTextBtn" aria-label="Add Text Box">Add Text Box</button>
-  <button id="downloadBtn" disabled>Download</button>
-  <button id="shareBtn" disabled>Share JPEG</button>
-  <input type="text" id="templateName" placeholder="Enter template name" aria-label="Template Name" />
-  <button id="saveBtn" disabled>Save Template</button>
+<div id="controls" style="display:none;" aria-label="Editor Controls">
+  <button id="addTextBoxBtn" aria-label="Add Text Box">Add Text Box</button>
+  <button id="downloadBtn" disabled aria-label="Download Image">Download</button>
+  <button id="shareBtn" disabled aria-label="Share Image as JPEG">Share JPEG</button>
+  <input type="text" id="templateNameInput" placeholder="Enter template name" aria-label="Template name input" />
+  <button id="saveTemplateBtn" disabled aria-label="Save Template">Save Template</button>
+</div>
+
+<!-- Floating style toolbar -->
+<div id="styleControls" aria-label="Text style controls" role="toolbar" aria-hidden="true">
+  <button id="boldBtn" title="Toggle Bold" aria-pressed="false" type="button"><b>B</b></button>
+  <button id="italicBtn" title="Toggle Italic" aria-pressed="false" type="button"><i>I</i></button>
+  <select id="fontSizeSelect" title="Select Text Size" aria-label="Text size">
+    <option value="12px">12</option>
+    <option value="14px">14</option>
+    <option value="16px" selected>16</option>
+    <option value="18px">18</option>
+    <option value="20px">20</option>
+    <option value="24px">24</option>
+    <option value="28px">28</option>
+    <option value="32px">32</option>
+  </select>
+  <select id="fontFamilySelect" title="Select Font Family" aria-label="Font family">
+    <option value="Arial, sans-serif" selected>Arial</option>
+    <option value="'Times New Roman', serif">Times New Roman</option>
+    <option value="'Courier New', monospace">Courier New</option>
+    <option value="Georgia, serif">Georgia</option>
+    <option value="Verdana, sans-serif">Verdana</option>
+    <option value="'Brush Script MT', cursive">Brush Script MT (Cursive)</option>
+    <option value="'Pacifico', cursive">Pacifico (Cursive)</option>
+    <option value="'Dancing Script', cursive">Dancing Script (Cursive)</option>
+  </select>
+  <input type="color" id="fontColorPicker" title="Pick Text Color" aria-label="Text color" value="#000000" />
 </div>
 
 <div id="container">
   <div id="zoomable-content"></div>
 </div>
 
-<div id="styleControls" aria-hidden="true" role="toolbar">
-  <button id="boldBtn" aria-pressed="false" title="Bold"><b>B</b></button>
-  <button id="italicBtn" aria-pressed="false" title="Italic"><i>I</i></button>
-  <select id="fontSize" title="Font size" aria-label="Font size">
-    <option>12</option><option>14</option><option selected>16</option><option>18</option>
-    <option>20</option><option>24</option><option>28</option><option>32</option>
-  </select>
-  <select id="fontFamily" title="Font family" aria-label="Font family">
-    <option value="Arial, sans-serif" selected>Arial</option>
-    <option value="'Times New Roman', serif">Times New Roman</option>
-    <option value="'Courier New', monospace">Courier New</option>
-    <option value="Georgia, serif">Georgia</option>
-    <option value="Verdana, sans-serif">Verdana</option>
-    <option value="'Brush Script MT', cursive">Brush Script MT</option>
-    <option value="'Pacifico', cursive">Pacifico</option>
-    <option value="'Dancing Script', cursive">Dancing Script</option>
-  </select>
-  <input type="color" id="fontColor" title="Font color" aria-label="Font color" value="#000000" />
-</div>
-
-<div id="downloadPopup" role="dialog" aria-modal="true" aria-labelledby="downloadPopupTitle" aria-describedby="downloadPopupDesc" tabindex="-1" style="display:none;">
-  <h3 id="downloadPopupTitle">Export Format</h3>
-  <p id="downloadPopupDesc">Select export format for your image</p>
+<!-- Download Format Pop-up -->
+<div id="downloadFormatPopup" role="dialog" aria-modal="true" aria-labelledby="downloadPopupLabel" tabindex="-1">
+  <strong id="downloadPopupLabel">Select Export Format:</strong>
   <label><input type="radio" name="exportFormat" value="png" checked /> PNG</label>
   <label><input type="radio" name="exportFormat" value="jpeg" /> JPEG</label>
-  <label><input type="radio" name="exportFormat" value="pdf" /> PDF</label>
-  <div style="text-align:right; margin-top:20px;">
-    <button id="confirmDownload" class="confirm">Export</button>
-    <button id="cancelDownload" class="cancel">Cancel</button>
+  <label><input type="radio" name="exportFormat" value="pdf" /> PDF (print/save popup)</label>
+  <div style="margin-top:16px; text-align:right;">
+    <button id="confirmDownloadBtn">Export</button>
+    <button id="cancelDownloadPopup">Cancel</button>
   </div>
 </div>
 
-<script src="script.js" defer></script>
-</body>
-</html>
+<script>
+  // Elements
+  const imageUploader = document.getElementById('imageUploader');
+  const container = document.getElementById('container');
+  const zoomableContent = document.getElementById('zoomable-content');
+  const controls = document.getElementById('controls');
+  const addTextBoxBtn = document.getElementById('addTextBoxBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const shareBtn = document.getElementById('shareBtn');
+  const templateNameInput = document.getElementById('templateNameInput');
+  const saveTemplateBtn = document.getElementById('saveTemplateBtn');
+  const savedTemplatesList = document.getElementById('savedTemplatesList');
+  const savedTemplatesContainer = document.getElementById('savedTemplatesContainer');
+  const toggleSavedTemplatesBtn = document.getElementById('toggleSavedTemplatesBtn');
+  const clearAllBtn = document.getElementById('clearAllBtn');
+  const styleControls = document.getElementById('styleControls');
+  const boldBtn = document.getElementById('boldBtn');
+  const italicBtn = document.getElementById('italicBtn');
+  const fontSizeSelect = document.getElementById('fontSizeSelect');
+  const fontFamilySelect = document.getElementById('fontFamilySelect');
+  const fontColorPicker = document.getElementById('fontColorPicker');
+  const downloadFormatPopup = document.getElementById('downloadFormatPopup');
+  const confirmDownloadBtn = document.getElementById('confirmDownloadBtn');
+  const cancelDownloadPopup = document.getElementById('cancelDownloadPopup');
+  const darkModeToggle = document.getElementById('darkModeToggle');
+
+  let imageElement = null;
+  let focusedTextarea = null;
+
+  // Dark mode toggle logic
+  function setDarkMode(enabled) {
+    document.documentElement.classList.toggle('dark', enabled);
+    localStorage.setItem('darkMode', enabled ? 'true' : 'false');
+  }
+  // Initialize dark mode from saved preference
+  setDarkMode(localStorage.getItem('darkMode') === 'true');
+  darkModeToggle.checked = localStorage.getItem('darkMode') === 'true';
+
+  darkModeToggle.addEventListener('change', e => {
+    setDarkMode(e.target.checked);
+  });
+
+  // Show/hide Saved Templates controls
+  function afterTemplatesLoaded() {
+    toggleSavedTemplatesBtn.style.display = 'inline-block';
+    savedTemplatesContainer.style.display = 'none';
+    toggleSavedTemplatesBtn.textContent = 'Show Saved Templates';
+  }
+  toggleSavedTemplatesBtn.addEventListener('click', () => {
+    if (savedTemplatesContainer.style.display === 'none' || savedTemplatesContainer.style.display === '') {
+      savedTemplatesContainer.style.display = 'block';
+      toggleSavedTemplatesBtn.textContent = 'Hide Saved Templates';
+    } else {
+      savedTemplatesContainer.style.display = 'none';
+      toggleSavedTemplatesBtn.textContent = 'Show Saved Templates';
+    }
+  });
+
+  // Template Management functions
+  function getSavedTemplates() {
+    const data = localStorage.getItem('imageEditorTemplates');
+    return data ? JSON.parse(data) : {};
+  }
+  function saveTemplatesToStorage(templates) {
+    localStorage.setItem('imageEditorTemplates', JSON.stringify(templates));
+  }
+  function renderSavedTemplatesList() {
+    savedTemplatesList.innerHTML = '';
+    const templates = getSavedTemplates();
+    const names = Object.keys(templates);
+    if (names.length === 0) {
+      savedTemplatesContainer.style.display = 'none';
+      toggleSavedTemplatesBtn.style.display = 'none';
+      return;
+    }
+    afterTemplatesLoaded();
+    names.forEach(name => {
+      const li = document.createElement('li');
+      const span = document.createElement('span');
+      span.textContent = name;
+      span.title = "Click to load template";
+      span.style.flexGrow = '1';
+      span.style.cursor = 'pointer';
+      span.tabIndex = 0;
+      span.setAttribute("role", "button");
+      span.addEventListener('click', () => {
+        restoreState(templates[name]);
+      });
+      span.addEventListener('keydown', e => {
+        if(e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          restoreState(templates[name]);
+        }
+      });
+      li.appendChild(span);
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Delete';
+      delBtn.title = 'Delete this template';
+      delBtn.addEventListener('click', () => {
+        if (confirm(`Delete template "${name}"?`)) {
+          const ts = getSavedTemplates();
+          delete ts[name];
+          saveTemplatesToStorage(ts);
+          renderSavedTemplatesList();
+        }
+      });
+      li.appendChild(delBtn);
+      savedTemplatesList.appendChild(li);
+    });
+  }
+  saveTemplateBtn.addEventListener('click', () => {
+    const name = templateNameInput.value.trim();
+    if (!name) {
+      alert('Please enter a template name.');
+      return;
+    }
+    const templates = getSavedTemplates();
+    if (templates.hasOwnProperty(name)) {
+      alert('Template name already exists. Please choose a different name.');
+      return;
+    }
+    const currentState = captureCurrentState();
+    if (!currentState.imageSrc) {
+      alert('No image to save.');
+      return;
+    }
+    templates[name] = currentState;
+    saveTemplatesToStorage(templates);
+    renderSavedTemplatesList();
+    alert(`Template "${name}" saved.`);
+    templateNameInput.value = '';
+    updateSaveButtonState();
+  });
+  templateNameInput.addEventListener('input', updateSaveButtonState);
+  function updateSaveButtonState() {
+    saveTemplateBtn.disabled = !imageElement || !templateNameInput.value.trim();
+  }
+
+  function showControls() {
+    controls.style.display = 'flex';
+    updateSaveButtonState();
+    updateDownloadShareButtonState();
+    clearAllBtn.style.display = 'inline-block';
+  }
+  function updateDownloadShareButtonState() {
+    const enable = !!imageElement;
+    downloadBtn.disabled = !enable;
+    shareBtn.disabled = !enable;
+  }
+
+  // Capture and restore editor state
+  function captureCurrentState() {
+    const textboxes = [];
+    zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
+      const textarea = wrapper.querySelector('textarea');
+      const isLocked = wrapper.classList.contains('locked');
+      textboxes.push({
+        top: wrapper.style.top,
+        left: wrapper.style.left,
+        width: textarea.style.width || textarea.offsetWidth + 'px',
+        height: textarea.style.height || textarea.offsetHeight + 'px',
+        value: textarea.value,
+        fontWeight: textarea.style.fontWeight || 'normal',
+        fontStyle: textarea.style.fontStyle || 'normal',
+        fontSize: textarea.style.fontSize || '16px',
+        fontFamily: textarea.style.fontFamily || 'Arial, sans-serif',
+        color: textarea.style.color || '#000',
+        locked: isLocked
+      });
+    });
+    return {
+      imageSrc: imageElement ? imageElement.src : null,
+      textboxes
+    };
+  }
+  function restoreState(state) {
+    if (!state || !state.imageSrc) return;
+    zoomableContent.innerHTML = '';
+    imageElement = new Image();
+    imageElement.src = state.imageSrc;
+    imageElement.draggable = false;
+    imageElement.style.userSelect = 'none';
+    imageElement.style.position = 'relative';
+    imageElement.style.maxWidth = '100%';
+    imageElement.style.height = 'auto';
+    imageElement.onload = () => {
+      zoomableContent.appendChild(imageElement);
+      showControls();
+      state.textboxes.forEach(tb => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'textbox-wrapper';
+        wrapper.style.top = tb.top;
+        wrapper.style.left = tb.left;
+        if (tb.locked) wrapper.classList.add('locked');
+        const textarea = document.createElement('textarea');
+        textarea.value = tb.value;
+        textarea.style.width = tb.width;
+        textarea.style.height = tb.height;
+        textarea.style.fontWeight = tb.fontWeight;
+        textarea.style.fontStyle = tb.fontStyle;
+        textarea.style.fontSize = tb.fontSize;
+        textarea.style.fontFamily = tb.fontFamily;
+        textarea.style.color = tb.color;
+        if (tb.locked) {
+          textarea.setAttribute('readonly', 'readonly');
+          textarea.style.cursor = 'default';
+          textarea.style.userSelect = 'none';
+          textarea.style.backgroundColor = '#eee';
+        }
+        wrapper.appendChild(textarea);
+        const dragHandle = document.createElement('div');
+        dragHandle.className = 'drag-handle';
+        dragHandle.textContent = '●';
+        if (tb.locked) {
+          dragHandle.style.cursor = 'default';
+          dragHandle.style.backgroundColor = '#999';
+        }
+        wrapper.appendChild(dragHandle);
+        const btnContainer = document.createElement('div');
+        btnContainer.className = 'textbox-buttons';
+        const dupBtn = document.createElement('button');
+        dupBtn.title = 'Duplicate';
+        dupBtn.textContent = '⎘';
+        dupBtn.addEventListener('click', () => duplicateTextBox(wrapper));
+        btnContainer.appendChild(dupBtn);
+        const lockBtn = document.createElement('button');
+        lockBtn.title = tb.locked ? 'Unlock Text Box' : 'Lock Text Box';
+        lockBtn.textContent = tb.locked ? '🔒' : '🔓';
+        lockBtn.addEventListener('click', () => toggleLockTextBox(wrapper, lockBtn, textarea, dragHandle));
+        btnContainer.appendChild(lockBtn);
+        const delBtn = document.createElement('button');
+        delBtn.title = 'Delete';
+        delBtn.textContent = '✕';
+        delBtn.addEventListener('click', () => {
+          if (confirm('Delete this text box?')) {
+            wrapper.remove();
+            hideStyleControls();
+          }
+        });
+        btnContainer.appendChild(delBtn);
+        wrapper.appendChild(btnContainer);
+        zoomableContent.appendChild(wrapper);
+        makeDraggable(wrapper, dragHandle);
+        attachTextboxListeners(textarea);
+      });
+    };
+  }
+
+  // Lock toggle function
+  function toggleLockTextBox(wrapper, lockBtn, textarea, dragHandle) {
+    if (wrapper.classList.contains('locked')) {
+      wrapper.classList.remove('locked');
+      textarea.removeAttribute('readonly');
+      textarea.style.cursor = 'text';
+      textarea.style.userSelect = 'text';
+      textarea.style.backgroundColor = 'rgba(255,255,255,0.7)';
+      dragHandle.style.cursor = 'grab';
+      dragHandle.style.backgroundColor = 'var(--drag-handle-bg)';
+      lockBtn.textContent = '🔓';
+      lockBtn.title = 'Lock Text Box';
+    } else {
+      wrapper.classList.add('locked');
+      textarea.setAttribute('readonly', 'readonly');
+      textarea.style.cursor = 'default';
+      textarea.style.userSelect = 'none';
+      textarea.style.backgroundColor = '#eee';
+      dragHandle.style.cursor = 'default';
+      dragHandle.style.backgroundColor = '#999';
+      lockBtn.textContent = '🔒';
+      lockBtn.title = 'Unlock Text Box';
+      if (focusedTextarea === textarea) {
+        focusedTextarea = null;
+        hideStyleControls();
+      }
+    }
+  }
+
+  // Floating toolbar style handlers
+  function updateStyleControlsPosition() {
+    if (!focusedTextarea) {
+      styleControls.classList.remove('visible');
+      styleControls.setAttribute('aria-hidden', 'true');
+      return;
+    }
+    const wrapper = focusedTextarea.parentElement;
+    if(wrapper.classList.contains('locked')) {
+      styleControls.classList.remove('visible');
+      styleControls.setAttribute('aria-hidden', 'true');
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const textareaRect = focusedTextarea.getBoundingClientRect();
+    const top = textareaRect.top - containerRect.top + container.scrollTop;
+    const left = textareaRect.left - containerRect.left + container.scrollLeft;
+    const toolbarHeight = styleControls.offsetHeight;
+    const toolbarWidth = styleControls.offsetWidth;
+    let posTop = top - toolbarHeight - 8;
+    let posLeft = left;
+    if (posTop < container.scrollTop) posTop = top + focusedTextarea.offsetHeight + 8;
+    if (posLeft + toolbarWidth > container.scrollLeft + container.clientWidth)
+      posLeft = container.scrollLeft + container.clientWidth - toolbarWidth - 8;
+    if (posLeft < container.scrollLeft) posLeft = container.scrollLeft + 8;
+    styleControls.style.top = posTop + 'px';
+    styleControls.style.left = posLeft + 'px';
+    styleControls.classList.add('visible');
+    styleControls.setAttribute('aria-hidden', 'false');
+    boldBtn.classList.toggle('active', focusedTextarea.style.fontWeight === 'bold');
+    boldBtn.setAttribute('aria-pressed', focusedTextarea.style.fontWeight === 'bold');
+    italicBtn.classList.toggle('active', focusedTextarea.style.fontStyle === 'italic');
+    italicBtn.setAttribute('aria-pressed', focusedTextarea.style.fontStyle === 'italic');
+    fontSizeSelect.value = focusedTextarea.style.fontSize || '16px';
+    fontFamilySelect.value = focusedTextarea.style.fontFamily || 'Arial, sans-serif';
+    fontColorPicker.value = rgbToHex(focusedTextarea.style.color) || '#000000';
+  }
+  function hideStyleControls() {
+    styleControls.classList.remove('visible');
+    styleControls.setAttribute('aria-hidden', 'true');
+  }
+  boldBtn.addEventListener('click', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontWeight = focusedTextarea.style.fontWeight === 'bold' ? 'normal' : 'bold';
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+  });
+  italicBtn.addEventListener('click', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontStyle = focusedTextarea.style.fontStyle === 'italic' ? 'normal' : 'italic';
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+  });
+  fontSizeSelect.addEventListener('change', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontSize = fontSizeSelect.value;
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+  });
+  fontFamilySelect.addEventListener('change', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.fontFamily = fontFamilySelect.value;
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+  });
+  fontColorPicker.addEventListener('input', () => {
+    if (!focusedTextarea) return;
+    focusedTextarea.style.color = fontColorPicker.value;
+    updateStyleControlsPosition();
+    focusedTextarea.focus();
+  });
+  zoomableContent.addEventListener('focusin', e => {
+    if (e.target.tagName === 'TEXTAREA' && !e.target.parentElement.classList.contains('locked')) {
+      focusedTextarea = e.target;
+      updateStyleControlsPosition();
+      container.addEventListener('scroll', updateStyleControlsPosition);
+      window.addEventListener('resize', updateStyleControlsPosition);
+    }
+  });
+  zoomableContent.addEventListener('focusout', e => {
+    setTimeout(() => {
+      const active = document.activeElement;
+      if (focusedTextarea && (active === focusedTextarea || styleControls.contains(active))) return;
+      focusedTextarea = null;
+      hideStyleControls();
+      container.removeEventListener('scroll', updateStyleControlsPosition);
+      window.removeEventListener('resize', updateStyleControlsPosition);
+    }, 0);
+  });
+
+  // Dragging implementation
+  function getPointerPos(e) {
+    if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.clientX !== undefined && e.clientY !== undefined) return { x: e.clientX, y: e.clientY };
+    return null;
+  }
+  function makeDraggable(wrapper, handle) {
+    let isDragging = false;
+    let startX, startY;
+    let origX, origY;
+    function dragStart(e) {
+      if (wrapper.classList.contains('locked')) return;
+      e.preventDefault();
+      const pointer = getPointerPos(e);
+      if (!pointer) return;
+      isDragging = true;
+      startX = pointer.x;
+      startY = pointer.y;
+      const rect = wrapper.getBoundingClientRect();
+      origX = rect.left;
+      origY = rect.top;
+      handle.style.cursor = 'grabbing';
+      wrapper.style.zIndex = 9999;
+    }
+    function dragMove(e) {
+      if (!isDragging) return;
+      e.preventDefault();
+      const pointer = getPointerPos(e);
+      if (!pointer) return;
+      let dx = pointer.x - startX;
+      let dy = pointer.y - startY;
+      const containerRect = zoomableContent.getBoundingClientRect();
+      let newLeft = origX + dx - containerRect.left;
+      let newTop = origY + dy - containerRect.top;
+      newLeft = Math.max(0, Math.min(newLeft, containerRect.width - wrapper.offsetWidth));
+      newTop = Math.max(0, Math.min(newTop, containerRect.height - wrapper.offsetHeight));
+      wrapper.style.left = newLeft + 'px';
+      wrapper.style.top = newTop + 'px';
+      if (focusedTextarea && focusedTextarea.parentElement === wrapper) updateStyleControlsPosition();
+    }
+    function dragEnd() {
+      if (!isDragging) return;
+      isDragging = false;
+      handle.style.cursor = 'grab';
+      wrapper.style.zIndex = '';
+    }
+    if (window.PointerEvent) {
+      handle.style.touchAction = 'none';
+      handle.addEventListener('pointerdown', dragStart);
+      window.addEventListener('pointermove', dragMove);
+      window.addEventListener('pointerup', dragEnd);
+      window.addEventListener('pointercancel', dragEnd);
+    } else {
+      handle.addEventListener('mousedown', dragStart);
+      handle.addEventListener('touchstart', dragStart, { passive: false });
+      window.addEventListener('mousemove', dragMove);
+      window.addEventListener('touchmove', dragMove, { passive: false });
+      window.addEventListener('mouseup', dragEnd);
+      window.addEventListener('touchend', dragEnd);
+      window.addEventListener('touchcancel', dragEnd);
+    }
+  }
+  function attachTextboxListeners(textarea) {
+    textarea.addEventListener('input', () => {});
+    ['blur', 'focus', 'keyup', 'mouseup'].forEach(evt => {
+      textarea.addEventListener(evt, () => {
+        if (textarea === focusedTextarea) updateStyleControlsPosition();
+      });
+    });
+  }
+
+  // Image upload handler
+  imageUploader.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = event => {
+      zoomableContent.innerHTML = '';
+      imageElement = new Image();
+      imageElement.src = event.target.result;
+      imageElement.draggable = false;
+      imageElement.style.userSelect = 'none';
+      imageElement.style.position = 'relative';
+      imageElement.style.maxWidth = '100%';
+      imageElement.style.height = 'auto';
+      imageElement.onload = () => {
+        zoomableContent.appendChild(imageElement);
+        showControls();
+      };
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Download popup handlers
+  downloadBtn.addEventListener('click', () => {
+    if (!imageElement) {
+      alert('Please upload or load a template first.');
+      return;
+    }
+    downloadFormatPopup.style.display = 'block';
+    downloadFormatPopup.focus();
+  });
+  cancelDownloadPopup.addEventListener('click', () => {
+    downloadFormatPopup.style.display = 'none';
+  });
+  confirmDownloadBtn.addEventListener('click', () => {
+    const selected = downloadFormatPopup.querySelector('input[name="exportFormat"]:checked');
+    if (!selected) {
+      alert('Please select an export format.');
+      return;
+    }
+    downloadFormatPopup.style.display = 'none';
+    if (selected.value === 'pdf') exportPdfPopup();
+    else exportImage(selected.value);
+  });
+
+  // Export image PNG or JPEG
+  function exportImage(type) {
+    const canvas = document.createElement('canvas');
+    canvas.width = imageElement.naturalWidth;
+    canvas.height = imageElement.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+    const imageRect = imageElement.getBoundingClientRect();
+    const zoomableRect = zoomableContent.getBoundingClientRect();
+    const scaleX = canvas.width / imageRect.width;
+    const scaleY = canvas.height / imageRect.height;
+
+    zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
+      const textarea = wrapper.querySelector('textarea');
+      if (wrapper.classList.contains('locked')) return;
+      const style = window.getComputedStyle(textarea);
+      const fontSize = parseInt(style.fontSize);
+      const fontFamily = style.fontFamily;
+      const fontWeight = style.fontWeight;
+      const fontStyle = style.fontStyle;
+      const color = style.color || '#000';
+      const wrapperLeft = parseFloat(wrapper.style.left || 0);
+      const wrapperTop = parseFloat(wrapper.style.top || 0);
+      const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
+      const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
+      const x = offsetX * scaleX;
+      const y = offsetY * scaleY;
+      ctx.fillStyle = color;
+      ctx.font = `${fontStyle} ${fontWeight} ${fontSize * scaleX}px ${fontFamily}`;
+      ctx.textBaseline = 'top';
+      const lines = textarea.value.split('\n');
+      const lineHeight = fontSize * 1.2 * scaleY;
+      lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
+    });
+
+    const link = document.createElement('a');
+    link.download = `edited-image.${type}`;
+    link.href = (type === 'png') ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.95);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  // PDF Export popup (print to PDF)
+  function exportPdfPopup() {
+    if (!imageElement) {
+      alert('Please upload or load a template first.');
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = imageElement.naturalWidth;
+    canvas.height = imageElement.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+    const imageRect = imageElement.getBoundingClientRect();
+    const zoomableRect = zoomableContent.getBoundingClientRect();
+    const scaleX = canvas.width / imageRect.width;
+    const scaleY = canvas.height / imageRect.height;
+    zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
+      const textarea = wrapper.querySelector('textarea');
+      const style = window.getComputedStyle(textarea);
+      const fontSize = parseInt(style.fontSize);
+      const fontFamily = style.fontFamily;
+      const fontWeight = style.fontWeight;
+      const fontStyle = style.fontStyle;
+      const color = style.color || '#000';
+      const wrapperLeft = parseFloat(wrapper.style.left || 0);
+      const wrapperTop = parseFloat(wrapper.style.top || 0);
+      const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
+      const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
+      const x = offsetX * scaleX;
+      const y = offsetY * scaleY;
+      ctx.fillStyle = color;
+      ctx.font = `${fontStyle} ${fontWeight} ${fontSize * scaleX}px ${fontFamily}`;
+      ctx.textBaseline = 'top';
+      const lines = textarea.value.split('\n');
+      const lineHeight = fontSize * 1.2 * scaleY;
+      lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
+    });
+    const dataUrl = canvas.toDataURL('image/png');
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Popup blocked. Please allow popups to export PDF.");
+      return;
+    }
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Export as PDF - Print and Save</title>
+          <style>body,html{margin:0;padding:0;height:100%;}
+          img{max-width:100%;height:auto;display:block;margin:0 auto;}
+          @media print{body{margin:0;}img{max-width:100%;height:auto;}}</style>
+        </head>
+        <body>
+          <img src="${dataUrl}" alt="Image to Export as PDF" />
+          <script>window.onload=()=>{window.focus();window.print();}<\/script>
+        </body>
+      </html>`);
+    printWindow.document.close();
+  }
+
+  // Share JPEG button, using Web Share API with fallback
+  shareBtn.addEventListener('click', () => {
+    if (!imageElement) {
+      alert("Please upload or load a template first.");
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = imageElement.naturalWidth;
+    canvas.height = imageElement.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+    const imageRect = imageElement.getBoundingClientRect();
+    const zoomableRect = zoomableContent.getBoundingClientRect();
+    const scaleX = canvas.width / imageRect.width;
+    const scaleY = canvas.height / imageRect.height;
+    zoomableContent.querySelectorAll('.textbox-wrapper').forEach(wrapper => {
+      const textarea = wrapper.querySelector('textarea');
+      if (wrapper.classList.contains('locked')) return;
+      const style = window.getComputedStyle(textarea);
+      const fontSize = parseInt(style.fontSize);
+      const fontFamily = style.fontFamily;
+      const fontWeight = style.fontWeight;
+      const fontStyle = style.fontStyle;
+      const color = style.color || '#000';
+      const wrapperLeft = parseFloat(wrapper.style.left || 0);
+      const wrapperTop = parseFloat(wrapper.style.top || 0);
+      const offsetX = wrapperLeft + (zoomableRect.left - imageRect.left);
+      const offsetY = wrapperTop + (zoomableRect.top - imageRect.top);
+      const x = offsetX * scaleX;
+      const y = offsetY * scaleY;
+      ctx.fillStyle = color;
+      ctx.font = `${fontStyle} ${fontWeight} ${fontSize * scaleX}px ${fontFamily}`;
+      ctx.textBaseline = 'top';
+      const lines = textarea.value.split('\n');
+      const lineHeight = fontSize * 1.2 * scaleY;
+      lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
+    });
+    canvas.toBlob(blob => {
+      if (navigator.canShare && navigator.canShare({ files: [new File([blob], 'template.jpeg', { type: 'image/jpeg' })] })) {
+        const file = new File([blob], 'template.jpeg', { type: 'image/jpeg' });
+        navigator.share({
+       
