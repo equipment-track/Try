@@ -1,0 +1,451 @@
+:root {
+  --bg-color: #fff;
+  --text-color: #202124;
+  --border-color: #dad7da;
+  --primary-color: #1a73e8;
+  --primary-hover: #1765cc;
+  --primary-shadow: rgba(26, 115, 232, 0.4);
+  --button-bg: #f8f8f8;
+  --button-hover: #e8f0fe;
+  --button-text: #1a73e8;
+  --drag-handle-bg: #1a73e8;
+  --drag-handle-hover: #1765cc;
+  --input-bg: #fff;
+  --input-text: #202124;
+  --toolbar-bg: #fff;
+  --modal-bg: #fff;
+  --modal-border: #1a73e8;
+}
+html.dark {
+  --bg-color: #202124;
+  --text-color: #e8eaed;
+  --border-color: #5f6368;
+  --primary-color: #8ab4f8;
+  --primary-hover: #669df6;
+  --primary-shadow: rgba(138, 180, 248, 0.6);
+  --button-bg: #303134;
+  --button-hover: #3c4043;
+  --button-text: #8ab4f8;
+  --drag-handle-bg: #8ab4f8;
+  --drag-handle-hover: #669df6;
+  --input-bg: #303134;
+  --input-text: #e8eaed;
+  --toolbar-bg: #303134;
+  --modal-bg: #434343;
+  --modal-border: #8ab4f8;
+}
+
+body {
+  margin: 10px;
+  background: var(--bg-color);
+  color: var(--text-color);
+  font-family: 'Roboto', Arial, sans-serif;
+  user-select: text;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s, color 0.3s;
+}
+
+h2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-weight: 400;
+}
+
+#container {
+  position: relative;
+  max-width: 900px;
+  max-height: 75vh;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: auto;
+  background: var(--bg-color);
+  box-shadow: 0 1px 3px rgb(60 64 67 / 0.15), 0 4px 8px rgb(60 64 67 / 0.10);
+}
+
+#zoomable-content {
+  position: relative;
+  user-select: none;
+}
+
+#zoomable-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+.textbox-wrapper {
+  position: absolute;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  box-sizing: border-box;
+  transition: box-shadow 0.3s ease;
+  display: inline-block;
+}
+
+.textbox-wrapper:hover:not(.locked),
+.textbox-wrapper:focus-within:not(.locked) {
+  box-shadow: 0 0 10px var(--primary-shadow);
+  border-color: var(--primary-color);
+}
+
+.textbox-wrapper.locked {
+  opacity: 0.7;
+}
+
+.textbox-wrapper textarea {
+  width: 200px;
+  height: 60px;
+  min-width: 50px;
+  min-height: 30px;
+  padding: 8px 10px;
+  font-size: 16px;
+  font-family: Arial, sans-serif;
+  resize: both;
+  border: none;
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--input-text);
+  cursor: text;
+  overflow-wrap: break-word;
+  outline: none;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.textbox-wrapper.locked textarea {
+  cursor: default;
+  user-select: none;
+  background: #eee;
+}
+
+.drag-handle {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  width: 24px;
+  height: 24px;
+  background: var(--drag-handle-bg);
+  border-radius: 50%;
+  cursor: grab;
+  z-index: 1002;
+  user-select: none;
+  color: #fff;
+  font-weight: bold;
+  font-size: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.3s;
+}
+
+.drag-handle:hover {
+  background: var(--drag-handle-hover);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.textbox-wrapper.locked .drag-handle {
+  cursor: default;
+  background: #999;
+}
+
+.textbox-wrapper .textbox-buttons {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  display: flex;
+  gap: 4px;
+  z-index: 1003;
+}
+
+.textbox-wrapper .textbox-buttons button {
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  border-radius: 3px;
+  border: none;
+  background: var(--primary-color);
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.textbox-wrapper .textbox-buttons button:hover {
+  background: var(--primary-hover);
+}
+
+#topButtons {
+  margin: 12px 0;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+#topButtons button,
+label.dark-label {
+  background: var(--button-bg);
+  border: 1px solid var(--border-color);
+  color: var(--button-text);
+  font-size: 14px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 1px 1px rgba(60, 64, 67, 0.15);
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+#topButtons button:hover,
+#topButtons button:focus-visible,
+label.dark-label:hover,
+label.dark-label:focus-visible {
+  background: var(--button-hover);
+  box-shadow: 0 4px 8px var(--primary-shadow);
+  outline: none;
+}
+
+#clearAll {
+  background: #d93025;
+  color: #fff;
+}
+
+#clearAll:hover,
+#clearAll:focus-visible {
+  background: #b3271b;
+  box-shadow: none;
+}
+
+#controls {
+  margin-top: 8px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+#controls button,
+#controls input,
+#controls select {
+  background: var(--button-bg);
+  border: 1px solid var(--border-color);
+  color: var(--button-text);
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 14px;
+  font-size: 14px;
+  border-radius: 20px;
+  box-shadow: 0 1px 1px rgba(60, 64, 67, 0.15);
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+#controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+#controls button:hover:not(:disabled),
+#controls button:focus-visible:not(:disabled),
+#controls input:focus-visible,
+#controls select:focus-visible {
+  background: var(--button-hover);
+  box-shadow: 0 4px 8px var(--primary-shadow);
+  outline: none;
+}
+
+#controls input,
+#controls select {
+  border-radius: 12px;
+}
+
+#savedTemplates {
+  max-height: 170px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.15);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  user-select: none;
+  padding: 8px;
+  display: none;
+}
+
+#savedTemplates ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#savedTemplates li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#savedTemplates li:hover,
+#savedTemplates li:focus-visible {
+  background: var(--button-hover);
+  outline: none;
+}
+
+#savedTemplates li button {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+#savedTemplates li button:hover,
+#savedTemplates li button:focus-visible {
+  background: var(--button-hover);
+  outline: none;
+}
+
+#styleControls {
+  position: absolute;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--toolbar-bg);
+  border-radius: 24px;
+  padding: 6px 14px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+  z-index: 5000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+#styleControls.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#styleControls button,
+#styleControls select,
+#styleControls input[type=color] {
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--button-bg);
+  color: var(--button-text);
+  font-size: 14px;
+  padding: 6px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.3s;
+}
+
+#styleControls button.active {
+  background: var(--primary-color);
+  color: #fff;
+}
+
+#styleControls button:hover:not(.active),
+#styleControls select:hover,
+#styleControls input[type=color]:hover {
+  background: var(--button-hover);
+}
+
+#styleControls select {
+  min-width: 90px;
+}
+
+#styleControls input[type=color] {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: none;
+}
+
+#downloadPopup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--modal-bg);
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  width: 280px;
+  z-index: 6000;
+  display: none;
+}
+
+#downloadPopup.show {
+  display: block;
+}
+
+#downloadPopup h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+
+#downloadPopup label {
+  display: block;
+  margin-bottom: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+#downloadPopup input[type=radio] {
+  margin-right: 8px;
+}
+
+#downloadPopup .buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+#downloadPopup button {
+  cursor: pointer;
+  border-radius: 24px;
+  border: none;
+  padding: 8px 18px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+#downloadPopup button.confirm {
+  background-color: var(--primary-color);
+  color: #fff;
+  box-shadow: 0 4px 10px var(--primary-shadow);
+}
+
+#downloadPopup button.confirm:hover {
+  background-color: var(--primary-hover);
+}
+
+#downloadPopup button.cancel {
+  background-color: #ccc;
+  color: #333;
+}
+
+#downloadPopup button.cancel:hover {
+  background-color: #bbb;
+}
